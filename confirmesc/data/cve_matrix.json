@@ -1,0 +1,75 @@
+{
+  "_comment": "Curated set of well-known, high-impact Linux privesc CVEs, matched by exact version comparison. Intentionally a short, high-confidence curated list rather than an exhaustive scrape - extend as needed. 'branch_fixes' handle CVEs backported at different points on different stable kernel branches (e.g. Dirty Pipe).",
+  "kernel": [
+    {
+      "cve": "CVE-2022-0847",
+      "name": "Dirty Pipe",
+      "min_version": "5.8.0",
+      "branch_fixes": [
+        {"prefix": "5.10.", "fixed_at": "5.10.102"},
+        {"prefix": "5.15.", "fixed_at": "5.15.25"},
+        {"prefix": "5.16.", "fixed_at": "5.16.11"}
+      ],
+      "default_fixed_at": "5.16.11",
+      "description": "Arbitrary write to read-only files via pipe buffer flag mishandling.",
+      "remediation": "Upgrade kernel to 5.16.11 / 5.15.25 / 5.10.102 or later (whichever matches your branch).",
+      "references": ["https://dirtypipe.cm4all.com/"]
+    },
+    {
+      "cve": "CVE-2016-5195",
+      "name": "Dirty COW",
+      "min_version": "2.6.22",
+      "branch_fixes": [],
+      "default_fixed_at": "4.8.3",
+      "description": "Race condition in the copy-on-write mechanism of the memory subsystem.",
+      "remediation": "Upgrade kernel to 4.8.3 or later, or confirm distro backport.",
+      "references": ["https://dirtycow.ninja/"]
+    },
+    {
+      "cve": "CVE-2021-3493",
+      "name": "OverlayFS privilege escalation",
+      "min_version": "4.0.0",
+      "branch_fixes": [],
+      "default_fixed_at": "5.11.0",
+      "description": "Missing permission check in the OverlayFS module allows capability escalation.",
+      "remediation": "Upgrade kernel to 5.11.0 or later, or confirm distro backport.",
+      "references": ["https://ubuntu.com/security/CVE-2021-3493"]
+    }
+  ],
+  "sudo": [
+    {
+      "cve": "CVE-2021-3156",
+      "name": "Sudo Baron Samedit",
+      "min_version": "1.8.2",
+      "branch_fixes": [
+        {"prefix": "1.9.", "fixed_at": "1.9.5p2"}
+      ],
+      "default_fixed_at": "1.8.31p3",
+      "description": "Heap-based buffer overflow in sudo's command-line argument parsing.",
+      "remediation": "Upgrade sudo to 1.8.31p3 (1.8.x branch) or 1.9.5p2 (1.9.x branch) or later.",
+      "references": ["https://www.sudo.ws/security/advisories/unescape_overflow/"]
+    },
+    {
+      "cve": "CVE-2019-14287",
+      "name": "Sudo user ID -1 / 4294967295 bypass",
+      "min_version": "1.8.0",
+      "branch_fixes": [],
+      "default_fixed_at": "1.8.28",
+      "description": "Runas restriction bypass allowing command execution as root even when explicitly disallowed.",
+      "remediation": "Upgrade sudo to 1.8.28 or later.",
+      "references": ["https://www.sudo.ws/security/advisories/minus_1_uid/"]
+    }
+  ],
+  "polkit": [
+    {
+      "cve": "CVE-2021-4034",
+      "name": "PwnKit",
+      "min_version": "0.0.1",
+      "branch_fixes": [],
+      "default_fixed_at": "0.120",
+      "description": "Out-of-bounds memory access in pkexec allows local privilege escalation via crafted argv/envp.",
+      "remediation": "Upgrade policykit-1/polkit to a patched build; check your distro's advisory for the backported fix version.",
+      "references": ["https://www.qualys.com/2022/01/25/cve-2021-4034/pwnkit.txt"]
+    }
+  ]
+}

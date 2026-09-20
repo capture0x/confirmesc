@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "confirmesc"
+version = "0.1.0"
+description = "A Linux privilege-escalation enumerator that confirms findings against real system state instead of just listing suspicious things."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "confirmesc contributors" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+    "Environment :: Console",
+    "Operating System :: POSIX :: Linux",
+]
+
+[project.scripts]
+confirmesc = "confirmesc.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["confirmesc*"]
+
+[tool.setuptools.package-data]
+"confirmesc.data" = ["*.json"]
