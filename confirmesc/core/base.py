@@ -62,8 +62,14 @@ class Check:
     #: such as running `<binary> --version`. Only done when active=True.
     supports_active: bool = False
 
-    def __init__(self, active: bool = False, timeout: int = 20):
+    #: True if this check can attempt a real, live exploitation PoC
+    #: (running the actual escalation payload and proving euid 0), gated
+    #: behind the separate, more invasive --poc flag.
+    supports_poc: bool = False
+
+    def __init__(self, active: bool = False, poc: bool = False, timeout: int = 20):
         self.active = active
+        self.poc = poc
         self.timeout = timeout
 
     def run(self) -> list[Finding]:  # pragma: no cover - implemented by subclasses

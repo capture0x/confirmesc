@@ -26,20 +26,44 @@ honest confidence level, so you can jump straight to what's actionable.
 - **Cron / systemd / `$PATH`** entries writable by the current user that a root-run scheduler will execute
 - **Capabilities** (`getcap -r /`) and **critical file** (`/etc/passwd`, `/etc/shadow`, `/etc/sudoers`, ...) writability
 
-## Passive vs. active confirmation
+## Three confirmation tiers: passive → active → PoC
 
 By default `confirmesc` is **fully passive** — it only reads file metadata,
 runs read-only commands (`find`, `getcap`, `sudo -n -l`, `uname -r`, ...),
 and never writes to disk or executes an exploit.
 
-Pass `--active` to allow one additional, still non-destructive step per
+**`--active`** allows one additional, still non-destructive step per
 finding: running a suspected binary with a harmless flag (`--version`,
 `--help`) to confirm it's a real, live executable rather than a dangling
 symlink. This never spawns a shell, never writes a file, and is always
 time-boxed (3s).
 
-**Only use this tool against systems you are authorized to test** (your own
-systems, a CTF, or an engagement with signed authorization).
+**`--poc`** goes further and is genuinely invasive: for every SUID / sudo /
+capability vector we have a curated payload for (`find`, `python`/`python2`/
+`python3`, `perl`, `ruby`, `php`, `node`, `lua`, `awk`/`gawk`, `bash`, and
+unrestricted `sudo ALL` rules), it **actually runs the real GTFOBins
+escalation payload** and checks whether the resulting process really has
+`euid == 0`. That flips a finding from "the conditions for exploitation are
+real" (CONFIRMED-by-condition) to "we actually got root, right now"
+(CONFIRMED-by-execution) — the strongest claim a privesc tool can make
+without leaving state behind.
+
+Every `--poc` payload is deliberately a single read-only `id -u` proof
+(e.g. `find . -maxdepth 0 -exec /usr/bin/id -u ;`, `python3 -c "import os;
+os.system('id -u')"`, `bash -p -c "id -u"`) — no interactive shell is ever
+spawned, no file is written, nothing persists. A failed attempt only ever
+prints an unprivileged uid instead of `0`; it does not downgrade the
+CONFIRMED-by-condition finding, it just notes the discrepancy so you know
+live exploitation didn't line up with the GTFOBins reference on this box.
+
+Not every vector has a `--poc` recipe yet (editors/pagers like `vim`/`less`
+that need a TTY, and cron/systemd writable-file findings that would require
+waiting for a scheduler to fire, are intentionally left as condition-only —
+see "Known limitations" below).
+
+**Only use `--poc` against systems you are explicitly authorized to test**
+(your own systems, a CTF, or an engagement with signed authorization). It
+will attempt real privilege escalation.
 
 ## Install & run
 
@@ -49,6 +73,7 @@ cd confirmesc
 python3 -m pip install -e .
 confirmesc                       # passive scan, text report
 confirmesc --active              # + harmless binary probes
+confirmesc --poc                 # + real exploitation proof (authorized systems only)
 confirmesc --format json -o out.json
 confirmesc --category suid_sgid_sudo --min-confidence LIKELY
 ```
@@ -61,9 +86,16 @@ python3 -m confirmesc.cli
 
 Exit code is `1` if any `CONFIRMED` finding exists, `0` otherwise — useful in CI/CTF automation.
 
+## Known limitations
+
+- `--poc` only covers vectors with a curated non-interactive payload (see list above). Editor/pager GTFOBins entries (`vim`, `less`, `man`, ...) need a TTY and are condition-only for now.
+- Writable cron/systemd targets are confirmed by write-access, not by actually waiting for the scheduler to fire and observing root execution — that would require a real (if reversible) wait/trigger step and isn't implemented yet.
+- Kernel/sudo/polkit CVE matches are version-string based (`LIKELY`); a distro can backport a fix without changing the version string, so always cross-check against your distro's advisory before relying on one.
+- The GTFOBins and CVE tables are curated subsets, not a full scrape — extend them as you hit binaries/CVEs they don't cover yet.
+
 ## Extending
 
-- Add binaries to `confirmesc/data/gtfobins.json` (`{"suid": bool, "sudo": bool, "capability": bool}`).
+- Add binaries to `confirmesc/data/gtfobins.json` (`{"suid": bool, "sudo": bool, "capability": bool, "poc_args": [...], "cap_poc_args": [...]}`). `poc_args`/`cap_poc_args` are optional argv lists appended after the binary path — keep payloads read-only (print a uid, nothing else).
 - Add CVEs to `confirmesc/data/cve_matrix.json` (`min_version`, optional `branch_fixes`, `default_fixed_at`).
 - Add a new check by subclassing `confirmesc.core.base.Check` and registering it in `confirmesc/checks/__init__.py`.
 

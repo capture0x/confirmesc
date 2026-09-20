@@ -29,6 +29,19 @@ def build_parser() -> argparse.ArgumentParser:
             "Never writes to disk or spawns exploits. Default: off (fully passive)."
         ),
     )
+    parser.add_argument(
+        "--poc",
+        action="store_true",
+        help=(
+            "DANGEROUS/INVASIVE: actually execute the real GTFOBins escalation "
+            "payload for every SUID/sudo/capability vector we have a curated "
+            "recipe for, and verify the resulting process really has euid 0. "
+            "This is live exploitation, not just a condition check. Payloads "
+            "are read-only ('id -u') - no shell, no file writes, no persistence "
+            "- but only run this against systems you are explicitly authorized "
+            "to test (your own box, a CTF, or a signed engagement)."
+        ),
+    )
     parser.add_argument("--format", choices=["text", "json"], default="text", help="Output format (default: text).")
     parser.add_argument("-o", "--output", metavar="FILE", help="Write report to FILE instead of stdout.")
     parser.add_argument(
@@ -53,8 +66,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    if args.poc:
+        print(
+            "[!] --poc: actually running real escalation payloads against this "
+            "system to prove root access. Only continue if you are authorized "
+            "to test this system.",
+            file=sys.stderr,
+        )
+
     checks = [
-        cls(active=args.active)
+        cls(active=args.active, poc=args.poc)
         for cls in ALL_CHECKS
         if not args.categories or cls.category in args.categories
     ]

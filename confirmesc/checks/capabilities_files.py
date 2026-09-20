@@ -11,6 +11,7 @@ import os
 
 from ..core.base import Check, Confidence, Finding
 from ..core.data_loader import load_gtfobins
+from . import poc as poc_engine
 
 # Capabilities that alone are enough for a straightforward root escalation
 # when present on a binary that can read/write/execute arbitrary files or
@@ -41,6 +42,7 @@ class CapabilitiesAndCriticalFilesCheck(Check):
     id = "capabilities_and_critical_files"
     category = "capabilities_and_critical_files"
     supports_active = False
+    supports_poc = True
 
     def run(self) -> list[Finding]:
         findings: list[Finding] = []
@@ -78,21 +80,41 @@ class CapabilitiesAndCriticalFilesCheck(Check):
             gtfo_entry = gtfo.get(basename)
             known_vector = bool(gtfo_entry and gtfo_entry.get("capability"))
 
+            title = f"Dangerous capability on {path}: {', '.join(sorted(dangerous))}"
+            description = (
+                f"`getcap -r /` directly reports '{path}' holds {caps_raw}. "
+                + (
+                    f"'{basename}' is a known GTFOBins capability-abuse vector "
+                    "(e.g. python3 with cap_setuid can spawn a root shell directly)."
+                    if known_vector
+                    else "This binary is not in the curated GTFOBins capability table - "
+                    "review manually to confirm an abuse primitive exists for it."
+                )
+            )
+            evidence = {"path": path, "capabilities": caps_raw, "gtfobins_known_vector": known_vector}
+
+            cap_poc_args = gtfo_entry.get("cap_poc_args") if gtfo_entry else None
+            if self.poc and cap_poc_args and "cap_setuid" in dangerous:
+                result = poc_engine.attempt_capability_poc(path, cap_poc_args)
+                evidence.update(result.as_evidence())
+                if result.success:
+                    title = f"ROOT CONFIRMED via capability exploitation: {path}"
+                    description += (
+                        f" PoC executed: `{' '.join(result.argv)}` actually returned "
+                        f"euid {result.observed_uid} - root access was live-verified."
+                    )
+                elif result.success is False:
+                    description += (
+                        f" PoC attempted (`{' '.join(result.argv)}`) but returned uid "
+                        f"{result.observed_uid!r} instead of 0."
+                    )
+
             findings.append(
                 self.finding(
-                    title=f"Dangerous capability on {path}: {', '.join(sorted(dangerous))}",
+                    title=title,
                     confidence=Confidence.CONFIRMED,
-                    description=(
-                        f"`getcap -r /` directly reports '{path}' holds {caps_raw}. "
-                        + (
-                            f"'{basename}' is a known GTFOBins capability-abuse vector "
-                            "(e.g. python3 with cap_setuid can spawn a root shell directly)."
-                            if known_vector
-                            else "This binary is not in the curated GTFOBins capability table - "
-                            "review manually to confirm an abuse primitive exists for it."
-                        )
-                    ),
-                    evidence={"path": path, "capabilities": caps_raw, "gtfobins_known_vector": known_vector},
+                    description=description,
+                    evidence=evidence,
                     remediation=f"Remove the capability if not required: setcap -r {path}",
                     references=(
                         [f"https://gtfobins.github.io/gtfobins/{basename}/"] if known_vector else []
