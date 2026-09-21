@@ -19,12 +19,17 @@ honest confidence level, so you can jump straight to what's actionable.
 | `INFO`      | Context worth knowing, not itself an escalation path (e.g. an unclassified SUID binary not in the curated GTFOBins table — flagged for manual review, not asserted exploitable). |
 | `ERROR`     | The check itself could not complete (missing tool, permission denied). |
 
-## What it checks (v0.1)
+## What it checks
 
 - **SUID/SGID + `sudo -l`**, cross-referenced against a curated [GTFOBins](https://gtfobins.github.io/) table
-- **Known high-impact CVEs** (Dirty Pipe, Dirty COW, OverlayFS, Sudo Baron Samedit, sudo `-1` uid bypass, PwnKit) via exact, branch-aware version comparison
+- **14 curated high-impact CVEs** (Dirty Pipe, Dirty COW, two OverlayFS bugs, Netfilter/nf_tables x2 including the widely-weaponized CVE-2024-1086, PTRACE_TRACEME, io_uring, Sudo Baron Samedit, sudo `-1` uid bypass, sudoedit EDITOR escape, PwnKit, polkit D-Bus bypass) via exact, branch-aware version comparison
 - **Cron / systemd / `$PATH`** entries writable by the current user that a root-run scheduler will execute
+- **Cron wildcard injection** - `tar`/`rsync`/`chown`/`chmod`/`zip`/`7z` run with an unquoted `*` from a directory you can write into (the classic GTFOBins "Wildcards" technique)
 - **Capabilities** (`getcap -r /`) and **critical file** (`/etc/passwd`, `/etc/shadow`, `/etc/sudoers`, ...) writability
+- **Group-membership escalation**: `docker`/`lxd`/`lxc`/`disk` group membership combined with actually-verified socket/device access
+- **NFS `no_root_squash`** exports (server-side, parsed from `/etc/exports`) and NFS client mounts worth a manual look
+- **sudo `env_keep`** exposing `LD_PRELOAD`/`LD_LIBRARY_PATH`/`PYTHONPATH`/`PERL5LIB` to an authorized sudo rule
+- **Credential recon**: SSH private keys, `.git-credentials`/`.netrc`/`.my.cnf`/`.pgpass`/`wp-config.php`/`.env`, and shell history files that belong to another user but are readable by you anyway
 
 ## Three confirmation tiers: passive → active → PoC
 
@@ -75,8 +80,14 @@ confirmesc                       # passive scan, text report
 confirmesc --active              # + harmless binary probes
 confirmesc --poc                 # + real exploitation proof (authorized systems only)
 confirmesc --format json -o out.json
+confirmesc --format html -o report.html   # shareable, collapsible HTML report
 confirmesc --category suid_sgid_sudo --min-confidence LIKELY
+confirmesc --quiet               # suppress the "[*] <check> done (Ns)" progress lines
 ```
+
+Checks run concurrently (thread pool, I/O-bound), so a full scan is typically
+dominated by the single slowest check (usually the SUID/SGID `find /` walk
+or `getcap -r /`) rather than the sum of all of them.
 
 Or without installing:
 
@@ -100,7 +111,9 @@ Exit code is `1` if any `CONFIRMED` finding exists, `0` otherwise — useful in 
 
 - `--poc` only covers vectors with a curated non-interactive payload (see list above). Editor/pager GTFOBins entries (`vim`, `less`, `man`, ...) need a TTY and are condition-only for now.
 - Writable cron/systemd targets are confirmed by write-access, not by actually waiting for the scheduler to fire and observing root execution — that would require a real (if reversible) wait/trigger step and isn't implemented yet.
-- Kernel/sudo/polkit CVE matches are version-string based (`LIKELY`); a distro can backport a fix without changing the version string, so always cross-check against your distro's advisory before relying on one.
+- Kernel/sudo/polkit CVE matches are version-string based (`LIKELY`); a distro can backport a fix without changing the version string, so always cross-check against your distro's advisory before relying on one. Fixed-version numbers for the less common CVEs are best-effort from public writeups and may be off by a point release on some branches.
+- `docker`/`lxd` group escalation and `sudo env_keep` findings are condition-only by design: proving them live would mean spinning up a real container or compiling and writing a shared object to disk, which breaks the "never writes to disk / never leaves running state" guarantee every other PoC in this tool holds to.
+- Cron wildcard injection detection uses a lightweight statement splitter, not a real shell parser - quoted `;`/`&&` inside strings, or wildcards built up across multiple variables, can be missed or (rarely) misattributed to the wrong working directory.
 - The GTFOBins and CVE tables are curated subsets, not a full scrape — extend them as you hit binaries/CVEs they don't cover yet.
 
 ## Extending

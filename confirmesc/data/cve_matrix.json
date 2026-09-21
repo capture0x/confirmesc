@@ -1,5 +1,5 @@
 {
-  "_comment": "Curated set of well-known, high-impact Linux privesc CVEs, matched by exact version comparison. Intentionally a short, high-confidence curated list rather than an exhaustive scrape - extend as needed. 'branch_fixes' handle CVEs backported at different points on different stable kernel branches (e.g. Dirty Pipe).",
+  "_comment": "Curated set of well-known, high-impact Linux privesc CVEs, matched by exact version comparison. Intentionally a curated list rather than an exhaustive scrape - extend as needed. 'branch_fixes' handle CVEs backported at different points on different stable kernel branches (e.g. Dirty Pipe). IMPORTANT: fixed-version numbers for the less common/older CVEs below are best-effort from public writeups and may be off by a point release on some branches - every match here is reported as LIKELY (never CONFIRMED) specifically because of this uncertainty; always cross-check against your distro's own security advisory before relying on one.",
   "kernel": [
     {
       "cve": "CVE-2022-0847",
@@ -34,6 +34,73 @@
       "description": "Missing permission check in the OverlayFS module allows capability escalation.",
       "remediation": "Upgrade kernel to 5.11.0 or later, or confirm distro backport.",
       "references": ["https://ubuntu.com/security/CVE-2021-3493"]
+    },
+    {
+      "cve": "CVE-2023-0386",
+      "name": "OverlayFS ownership/capability confusion",
+      "min_version": "5.11.0",
+      "branch_fixes": [
+        {"prefix": "5.4.", "fixed_at": "5.4.231"},
+        {"prefix": "5.10.", "fixed_at": "5.10.162"},
+        {"prefix": "5.15.", "fixed_at": "5.15.86"},
+        {"prefix": "6.0.", "fixed_at": "6.0.16"},
+        {"prefix": "6.1.", "fixed_at": "6.1.2"}
+      ],
+      "default_fixed_at": "6.2.0",
+      "description": "Improper ownership check when copying a capable file into an OverlayFS mount allows a capability-inheriting SUID-root binary to be created.",
+      "remediation": "Upgrade kernel to the fixed point release for your branch (see distro advisory).",
+      "references": ["https://www.datadoghq.com/blog/engineering/cve-2023-0386-overlayfs/"]
+    },
+    {
+      "cve": "CVE-2021-22555",
+      "name": "Netfilter heap out-of-bounds write",
+      "min_version": "2.6.19",
+      "branch_fixes": [
+        {"prefix": "5.10.", "fixed_at": "5.10.19"},
+        {"prefix": "5.4.", "fixed_at": "5.4.101"}
+      ],
+      "default_fixed_at": "5.12.0",
+      "description": "Heap out-of-bounds write in netfilter's x_tables allows a memory corruption primitive leading to privilege escalation.",
+      "remediation": "Upgrade kernel to the fixed point release for your branch.",
+      "references": ["https://google.github.io/security-research/pocs/linux/cve-2021-22555/writeup.html"]
+    },
+    {
+      "cve": "CVE-2019-13272",
+      "name": "PTRACE_TRACEME credential mishandling",
+      "min_version": "4.10.0",
+      "branch_fixes": [],
+      "default_fixed_at": "5.1.17",
+      "description": "A process that calls PTRACE_TRACEME can gain the privileges of a root parent process that later ptrace-attaches to it.",
+      "remediation": "Upgrade kernel to 5.1.17 or later, or confirm distro backport.",
+      "references": ["https://nvd.nist.gov/vuln/detail/CVE-2019-13272"]
+    },
+    {
+      "cve": "CVE-2023-2598",
+      "name": "io_uring out-of-bounds physical page access",
+      "min_version": "6.2.0",
+      "branch_fixes": [],
+      "default_fixed_at": "6.3.3",
+      "description": "io_uring mishandles a registered buffer, allowing out-of-bounds physical memory read/write.",
+      "remediation": "Upgrade kernel to 6.3.3 or later, or confirm distro backport.",
+      "references": ["https://github.com/Notselwyn/CVE-2023-2598"]
+    },
+    {
+      "cve": "CVE-2024-1086",
+      "name": "nf_tables (netfilter) use-after-free",
+      "min_version": "3.15.0",
+      "branch_fixes": [
+        {"prefix": "4.19.", "fixed_at": "4.19.307"},
+        {"prefix": "5.4.", "fixed_at": "5.4.271"},
+        {"prefix": "5.10.", "fixed_at": "5.10.216"},
+        {"prefix": "5.15.", "fixed_at": "5.15.149"},
+        {"prefix": "6.1.", "fixed_at": "6.1.76"},
+        {"prefix": "6.6.", "fixed_at": "6.6.15"},
+        {"prefix": "6.7.", "fixed_at": "6.7.3"}
+      ],
+      "default_fixed_at": "6.8.0",
+      "description": "Use-after-free in nf_tables allowing arbitrary read/write and privilege escalation; widely weaponized with public exploits since early 2024.",
+      "remediation": "Upgrade kernel to the fixed point release for your branch - treat as high priority given public exploit availability.",
+      "references": ["https://github.com/Notselwyn/CVE-2024-1086"]
     }
   ],
   "sudo": [
@@ -58,6 +125,16 @@
       "description": "Runas restriction bypass allowing command execution as root even when explicitly disallowed.",
       "remediation": "Upgrade sudo to 1.8.28 or later.",
       "references": ["https://www.sudo.ws/security/advisories/minus_1_uid/"]
+    },
+    {
+      "cve": "CVE-2023-22809",
+      "name": "sudoedit privilege escalation via EDITOR/VISUAL",
+      "min_version": "1.8.0",
+      "branch_fixes": [],
+      "default_fixed_at": "1.9.12p2",
+      "description": "sudoedit (sudo -e) mishandles extra arguments injected via the EDITOR/VISUAL/SUDO_EDITOR environment variables, allowing arbitrary file edits as root.",
+      "remediation": "Upgrade sudo to 1.9.12p2 or later.",
+      "references": ["https://www.sudo.ws/security/advisories/sudoedit_any/"]
     }
   ],
   "polkit": [
@@ -70,6 +147,16 @@
       "description": "Out-of-bounds memory access in pkexec allows local privilege escalation via crafted argv/envp.",
       "remediation": "Upgrade policykit-1/polkit to a patched build; check your distro's advisory for the backported fix version.",
       "references": ["https://www.qualys.com/2022/01/25/cve-2021-4034/pwnkit.txt"]
+    },
+    {
+      "cve": "CVE-2021-3560",
+      "name": "polkit D-Bus authentication bypass",
+      "min_version": "0.113",
+      "branch_fixes": [],
+      "default_fixed_at": "0.119",
+      "description": "A race condition in polkit's D-Bus request handling lets an unprivileged process obtain an authenticated session by disconnecting mid-request, bypassing authentication for privileged actions.",
+      "remediation": "Upgrade polkit to 0.119 or later, or confirm distro backport.",
+      "references": ["https://github.blog/2021-06-10-privilege-escalation-polkit-root-on-linux-with-bug/"]
     }
   ]
 }

@@ -9,7 +9,7 @@ from . import __version__
 from .checks import ALL_CHECKS
 from .core.base import Confidence
 from .core.runner import run_checks
-from .report import render_json, render_text
+from .report import render_html, render_json, render_text
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -42,7 +42,8 @@ def build_parser() -> argparse.ArgumentParser:
             "to test (your own box, a CTF, or a signed engagement)."
         ),
     )
-    parser.add_argument("--format", choices=["text", "json"], default="text", help="Output format (default: text).")
+    parser.add_argument("--format", choices=["text", "json", "html"], default="text", help="Output format (default: text).")
+    parser.add_argument("--quiet", action="store_true", help="Suppress the per-check progress lines on stderr.")
     parser.add_argument("-o", "--output", metavar="FILE", help="Write report to FILE instead of stdout.")
     parser.add_argument(
         "--category",
@@ -83,7 +84,11 @@ def main(argv: list[str] | None = None) -> int:
         print("No checks matched the given --category filter(s).", file=sys.stderr)
         return 2
 
-    result = run_checks(checks)
+    def on_check_done(check_id: str, duration: float) -> None:
+        if not args.quiet:
+            print(f"[*] {check_id} done ({duration:.1f}s)", file=sys.stderr)
+
+    result = run_checks(checks, on_check_done=on_check_done)
 
     if args.min_confidence:
         order = {c.value: i for i, c in enumerate([Confidence.CONFIRMED, Confidence.LIKELY, Confidence.INFO, Confidence.ERROR])}
@@ -92,6 +97,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.format == "json":
         output = render_json(result)
+    elif args.format == "html":
+        output = render_html(result)
     else:
         use_color = not args.no_color and sys.stdout.isatty() and not args.output
         output = render_text(result, use_color=use_color)
