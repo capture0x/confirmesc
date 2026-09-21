@@ -182,20 +182,26 @@ class CronSystemdPathCheck(Check):
     def _check_path(self) -> list[Finding]:
         findings: list[Finding] = []
         path_env = os.environ.get("PATH", "")
-        for directory in path_env.split(os.pathsep):
-            if not directory or directory in _SKIP_DIRS:
+        entries = path_env.split(os.pathsep)
+
+        # An empty entry (a leading/trailing/doubled ':') and a literal '.'
+        # both mean "the current working directory" to the shell - this must
+        # be checked BEFORE skipping falsy entries below, or the single most
+        # classic PATH misconfiguration (an empty entry) is silently missed.
+        if "" in entries or "." in entries:
+            findings.append(
+                self.finding(
+                    title="Relative/current directory in $PATH",
+                    confidence=Confidence.CONFIRMED,
+                    description="An empty or '.' entry in $PATH means commands can be hijacked by placing a malicious binary in the current working directory.",
+                    evidence={"PATH": path_env},
+                )
+            )
+
+        for directory in entries:
+            if not directory or directory == "." or directory in _SKIP_DIRS:
                 continue
             if not os.path.isdir(directory):
-                continue
-            if directory in (".", ""):
-                findings.append(
-                    self.finding(
-                        title="Relative/current directory in $PATH",
-                        confidence=Confidence.CONFIRMED,
-                        description="An empty or '.' entry in $PATH means commands can be hijacked by placing a malicious binary in the current working directory.",
-                        evidence={"PATH": path_env},
-                    )
-                )
                 continue
             if _writable(directory):
                 findings.append(

@@ -72,9 +72,9 @@ class SecretsReconCheck(Check):
             return False, st.st_uid  # our own file - not a finding
         return os.access(path, os.R_OK), st.st_uid
 
-    def _check_ssh_keys(self, my_uid: int) -> list[Finding]:
+    def _check_ssh_keys(self, my_uid: int, globs: list[str] | None = None) -> list[Finding]:
         findings = []
-        for pattern in _SSH_SEARCH_GLOBS:
+        for pattern in (globs if globs is not None else _SSH_SEARCH_GLOBS):
             for path in glob.glob(pattern):
                 basename = os.path.basename(path)
                 if basename.endswith(".pub") or basename not in _SSH_KEY_BASENAMES:
@@ -98,9 +98,9 @@ class SecretsReconCheck(Check):
                 )
         return findings
 
-    def _check_credential_files(self, my_uid: int) -> list[Finding]:
+    def _check_credential_files(self, my_uid: int, globs: list[str] | None = None) -> list[Finding]:
         findings = []
-        for pattern in _CREDENTIAL_FILE_GLOBS:
+        for pattern in (globs if globs is not None else _CREDENTIAL_FILE_GLOBS):
             for path in glob.glob(pattern):
                 if not os.path.isfile(path):
                     continue
@@ -122,9 +122,9 @@ class SecretsReconCheck(Check):
                 )
         return findings
 
-    def _check_history_files(self, my_uid: int) -> list[Finding]:
+    def _check_history_files(self, my_uid: int, globs: list[str] | None = None) -> list[Finding]:
         findings = []
-        for pattern in _HISTORY_GLOBS:
+        for pattern in (globs if globs is not None else _HISTORY_GLOBS):
             for path in glob.glob(pattern):
                 if not os.path.isfile(path):
                     continue

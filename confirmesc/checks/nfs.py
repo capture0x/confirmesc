@@ -32,11 +32,11 @@ class NfsCheck(Check):
         findings.extend(self._check_client_mounts())
         return findings
 
-    def _check_exports(self) -> list[Finding]:
-        if not os.path.isfile("/etc/exports"):
+    def _check_exports(self, exports_path: str = "/etc/exports") -> list[Finding]:
+        if not os.path.isfile(exports_path):
             return []
         try:
-            with open("/etc/exports", "r", encoding="utf-8", errors="ignore") as fh:
+            with open(exports_path, "r", encoding="utf-8", errors="ignore") as fh:
                 lines = fh.readlines()
         except OSError:
             return []
@@ -74,9 +74,9 @@ class NfsCheck(Check):
             )
         return findings
 
-    def _check_client_mounts(self) -> list[Finding]:
+    def _check_client_mounts(self, mounts_path: str = "/proc/mounts") -> list[Finding]:
         try:
-            with open("/proc/mounts", "r", encoding="utf-8", errors="ignore") as fh:
+            with open(mounts_path, "r", encoding="utf-8", errors="ignore") as fh:
                 lines = fh.readlines()
         except OSError:
             return []
