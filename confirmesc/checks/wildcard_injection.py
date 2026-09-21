@@ -23,9 +23,14 @@ from ..core.base import Check, Confidence, Finding
 
 _VULNERABLE_COMMANDS = ("tar", "rsync", "chown", "chmod", "zip", "7z")
 _CD_RE = re.compile(r"^\s*cd\s+(\S+)")
-_CRON_SOURCES = [
-    "/etc/crontab",
-    "/etc/cron.d/*",
+# /etc/crontab and /etc/cron.d/* use the crontab table format
+# ('min hour dom mon dow user command...' or '@special user command...') -
+# each LINE is an independently-scheduled, independently-executed job, so a
+# `cd` on one line must never leak into the next line's working directory.
+_CRONTAB_STYLE_SOURCES = ["/etc/crontab", "/etc/cron.d/*"]
+# run-parts style: each file *is* one sequential shell script, so `cd`
+# legitimately persists across lines within the same file.
+_SCRIPT_SOURCES = [
     "/etc/cron.hourly/*",
     "/etc/cron.daily/*",
     "/etc/cron.weekly/*",
@@ -49,17 +54,38 @@ class WildcardInjectionCheck(Check):
 
     def run(self) -> list[Finding]:
         findings: list[Finding] = []
-        files: list[str] = []
-        for pattern in _CRON_SOURCES:
-            files.extend(glob.glob(pattern))
 
-        for path in files:
-            if not os.path.isfile(path):
-                continue
-            findings.extend(self._scan_file(path))
+        crontab_files: list[str] = []
+        for pattern in _CRONTAB_STYLE_SOURCES:
+            crontab_files.extend(glob.glob(pattern))
+        for path in crontab_files:
+            if os.path.isfile(path):
+                findings.extend(self._scan_file(path, is_crontab_style=True))
+
+        script_files: list[str] = []
+        for pattern in _SCRIPT_SOURCES:
+            script_files.extend(glob.glob(pattern))
+        for path in script_files:
+            if os.path.isfile(path):
+                findings.extend(self._scan_file(path, is_crontab_style=False))
+
         return findings
 
-    def _scan_file(self, path: str) -> list[Finding]:
+    @staticmethod
+    def _strip_crontab_schedule(line: str) -> str:
+        """Drop the 'min hour dom mon dow user' (or '@special user') prefix
+        so command detection looks at the actual command, not schedule
+        digits or the username."""
+        tokens = line.split()
+        if not tokens:
+            return line
+        if tokens[0].startswith("@"):
+            return " ".join(tokens[2:])  # @daily user command...
+        if len(tokens) < 7:  # 5 schedule fields + user + at least 1 command token
+            return ""
+        return " ".join(tokens[6:])
+
+    def _scan_file(self, path: str, is_crontab_style: bool) -> list[Finding]:
         try:
             with open(path, "r", encoding="utf-8", errors="ignore") as fh:
                 lines = fh.readlines()
@@ -73,6 +99,14 @@ class WildcardInjectionCheck(Check):
             stripped = line.strip()
             if not stripped or stripped.startswith("#"):
                 continue
+
+            if is_crontab_style:
+                # Each crontab line is its own independent job/shell - never
+                # let a previous line's `cd` leak into this one.
+                cwd_context = None
+                stripped = self._strip_crontab_schedule(stripped)
+                if not stripped:
+                    continue
 
             for statement in _split_statements(stripped):
                 statement = statement.strip()

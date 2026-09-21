@@ -12,7 +12,6 @@ from __future__ import annotations
 import glob
 import os
 import re
-import stat
 
 from ..core.base import Check, Confidence, Finding
 
@@ -183,7 +182,6 @@ class CronSystemdPathCheck(Check):
     def _check_path(self) -> list[Finding]:
         findings: list[Finding] = []
         path_env = os.environ.get("PATH", "")
-        seen_writable_before_system = False
         for directory in path_env.split(os.pathsep):
             if not directory or directory in _SKIP_DIRS:
                 continue
@@ -200,7 +198,6 @@ class CronSystemdPathCheck(Check):
                 )
                 continue
             if _writable(directory):
-                seen_writable_before_system = True
                 findings.append(
                     self.finding(
                         title=f"Writable directory in $PATH: {directory}",

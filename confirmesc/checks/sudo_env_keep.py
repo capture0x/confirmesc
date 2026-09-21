@@ -18,6 +18,12 @@ from ..core.base import Check, Confidence, Finding
 
 _DANGEROUS_ENV_VARS = ("LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH", "PERL5LIB")
 _ENV_KEEP_RE = re.compile(r"env_keep\s*\+?=\s*\"?([^\n\"]+)\"?", re.IGNORECASE)
+# A real authorized command rule looks like '(runas) [NOPASSWD:] command' -
+# matches the same rule syntax suid_sudo.py parses. Plain text lines like
+# "Matching Defaults entries for ..." or the env_keep/secure_path settings
+# line itself must NOT count as "the user has a rule" - only this pattern
+# reflects an actual authorization sudo -l is granting.
+_SUDO_RULE_LINE_RE = re.compile(r"^\s*\([^)]+\)\s*(?:NOPASSWD:|PASSWD:)?\s*\S")
 
 
 class SudoEnvKeepCheck(Check):
@@ -31,10 +37,7 @@ class SudoEnvKeepCheck(Check):
         if proc.returncode != 0:
             return []  # no sudo access at all - sudo -l unavailable, nothing to leverage
 
-        has_any_rule = any(
-            line.strip() and not line.strip().startswith(("Matching", "User", "Sudoers"))
-            for line in proc.stdout.splitlines()
-        )
+        has_any_rule = any(_SUDO_RULE_LINE_RE.match(line) for line in proc.stdout.splitlines())
         if not has_any_rule:
             return []
 

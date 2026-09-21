@@ -11,9 +11,11 @@ short of calling it CONFIRMED because we never run the actual exploit.
 """
 from __future__ import annotations
 
+import os
+
 from ..core.base import Check, Confidence, Finding
 from ..core.data_loader import load_cve_matrix
-from ..core.version import in_vulnerable_range, version_lt
+from ..core.version import version_lt
 
 
 def _is_vulnerable(version: str, entry: dict) -> bool:
@@ -98,8 +100,6 @@ class CveMatrixCheck(Check):
         return findings
 
     def _check_polkit(self, entries: list[dict]) -> list[Finding]:
-        import os
-
         pkexec = "/usr/bin/pkexec"
         if not os.path.exists(pkexec):
             return []
