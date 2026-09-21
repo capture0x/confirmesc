@@ -127,10 +127,7 @@ class SuidSudoCheck(Check):
                         confidence=Confidence.CONFIRMED,
                         description=description,
                         evidence=evidence,
-                        remediation=(
-                            f"Remove the setuid/setgid bit if not required: "
-                            f"chmod -s {path}. See https://gtfobins.github.io/gtfobins/{basename}/"
-                        ),
+                        remediation=f"Remove the setuid/setgid bit if not required: chmod -s {path}",
                         references=[f"https://gtfobins.github.io/gtfobins/{basename}/"],
                     )
                 )
@@ -247,10 +244,7 @@ class SuidSudoCheck(Check):
                             confidence=Confidence.CONFIRMED,
                             description=description,
                             evidence=evidence,
-                            remediation=(
-                                f"Remove or tighten the sudoers rule for '{binary_path}'. "
-                                f"See https://gtfobins.github.io/gtfobins/{basename}/"
-                            ),
+                            remediation=f"Remove or tighten the sudoers rule for '{binary_path}'",
                             references=[f"https://gtfobins.github.io/gtfobins/{basename}/"],
                         )
                     )

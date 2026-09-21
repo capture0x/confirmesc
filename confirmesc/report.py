@@ -1,17 +1,21 @@
 """Text, HTML and JSON report rendering.
 
 Design intent for text/HTML: a human should be able to see, in the first
-screen, exactly what to act on. CONFIRMED/LIKELY findings get a full card
-(what it is, why, evidence, how to fix). INFO findings are pure "reviewed,
-nothing wrong found yet" noise by comparison - LinEnum/linpeas-style tools
-give them the same visual weight as real findings, which is exactly the
-"200 lines, which ones matter?" problem this tool exists to fix. So INFO
-findings are grouped by category and collapsed to one line each; JSON output
-is untouched (it's for machines, not eyes) and keeps every field in full.
+screen, exactly what to act on, on which host, and when. CONFIRMED/LIKELY
+findings get a full, numbered card (what it is, why, evidence, how to fix).
+INFO findings are pure "reviewed, nothing wrong found yet" noise by
+comparison - LinEnum/linpeas-style tools give them the same visual weight as
+real findings, which is exactly the "200 lines, which ones matter?" problem
+this tool exists to fix. So INFO findings are grouped by category and
+collapsed to one line each; JSON output is untouched (it's for machines,
+not eyes) and keeps every field in full.
 """
 from __future__ import annotations
 
+import getpass
 import json
+import os
+import socket
 from dataclasses import asdict
 
 from .core.base import Confidence, Finding, confidence_sort_key
@@ -30,9 +34,43 @@ _RESET = "\033[0m"
 _ACTIONABLE = (Confidence.CONFIRMED, Confidence.LIKELY)
 _MAX_EVIDENCE_VALUE_LEN = 140
 
+_CATEGORY_LABELS = {
+    "suid_sgid_sudo": "SUID/SGID & sudo",
+    "known_cves": "Kernel / sudo / polkit CVEs",
+    "scheduled_tasks_and_path": "Cron / systemd / $PATH",
+    "capabilities_and_critical_files": "Capabilities & critical files",
+    "group_membership": "Group membership (docker/lxd/disk)",
+    "nfs": "NFS exports",
+    "wildcard_injection": "Cron wildcard injection",
+    "sudo_env_keep": "sudo env_keep",
+    "secrets_recon": "Credential recon",
+}
+
+
+def _category_label(category: str) -> str:
+    return _CATEGORY_LABELS.get(category, category.replace("_", " ").title())
+
+
+def _gather_meta() -> dict[str, str]:
+    try:
+        hostname = socket.gethostname()
+    except Exception:
+        hostname = "unknown"
+    try:
+        user = getpass.getuser()
+    except Exception:
+        user = f"uid={os.getuid()}"
+    try:
+        kernel = os.uname().release
+    except Exception:
+        kernel = "unknown"
+    return {"hostname": hostname, "user": user, "kernel": kernel}
+
 
 def _stringify_evidence_value(value) -> str:
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, bool):
+        text = "yes" if value else "no"
+    elif isinstance(value, (list, tuple)):
         text = ", ".join(str(v) for v in value) if value else "(none)"
     elif isinstance(value, dict):
         text = ", ".join(f"{k}={v}" for k, v in value.items()) if value else "(none)"
@@ -64,14 +102,14 @@ def _group_by_category(findings: list[Finding]) -> dict[str, list[Finding]]:
 # --------------------------------------------------------------------------
 
 
-def _text_card(f: Finding, use_color: bool) -> list[str]:
+def _text_card(f: Finding, index: int, total: int, use_color: bool) -> list[str]:
     color = _COLOR[f.confidence] if use_color else ""
     bold = _BOLD if use_color else ""
     dim = _DIM if use_color else ""
     reset = _RESET if use_color else ""
 
-    lines = [f"{color}{bold}● [{f.confidence.value}]{reset} {bold}{f.title}{reset}"]
-    meta = f"category: {f.category}" + (f"   cve: {f.cve}" if f.cve else "")
+    lines = [f"{color}{bold}{index}/{total} [{f.confidence.value}]{reset} {bold}{f.title}{reset}"]
+    meta = f"category: {_category_label(f.category)}" + (f"   cve: {f.cve}" if f.cve else "")
     lines.append(f"  {dim}{meta}{reset}")
     lines.append(f"  {f.description}")
     if f.evidence:
@@ -85,7 +123,7 @@ def _text_card(f: Finding, use_color: bool) -> list[str]:
     return lines
 
 
-def render_text(result: RunResult, use_color: bool = True) -> str:
+def render_text(result: RunResult, use_color: bool = True, duration: float | None = None) -> str:
     findings = sorted(result.findings, key=confidence_sort_key)
     counts: dict[str, int] = {}
     for f in findings:
@@ -96,10 +134,13 @@ def render_text(result: RunResult, use_color: bool = True) -> str:
         reset = _RESET if use_color else ""
         return f"{color}{c.value}={counts.get(c, 0)}{reset}"
 
+    meta = _gather_meta()
     lines: list[str] = []
     lines.append("=" * 72)
     lines.append("confirmesc - Linux privilege escalation report")
     lines.append("=" * 72)
+    duration_str = f"   duration: {duration:.1f}s" if duration is not None else ""
+    lines.append(f"  host: {meta['hostname']}   user: {meta['user']}   kernel: {meta['kernel']}{duration_str}")
     lines.append("  " + "   ".join(badge(c) for c in (Confidence.CONFIRMED, Confidence.LIKELY, Confidence.INFO, Confidence.ERROR)))
     lines.append("")
 
@@ -108,11 +149,11 @@ def render_text(result: RunResult, use_color: bool = True) -> str:
     error_findings = [f for f in findings if f.confidence == Confidence.ERROR]
 
     if actionable:
-        lines.append("ACTIONABLE FINDINGS")
+        lines.append(f"ACTIONABLE FINDINGS ({len(actionable)})")
         lines.append("-" * 72)
         lines.append("")
-        for f in actionable:
-            lines.extend(_text_card(f, use_color))
+        for i, f in enumerate(actionable, start=1):
+            lines.extend(_text_card(f, i, len(actionable), use_color))
     else:
         lines.append("No CONFIRMED or LIKELY findings - nothing actionable found this pass.")
         lines.append("")
@@ -122,7 +163,7 @@ def render_text(result: RunResult, use_color: bool = True) -> str:
         lines.append(f"CONTEXT ({len(info_findings)} reviewed, nothing confirmed exploitable) - one line each, grouped by category:")
         lines.append("-" * 72)
         for category, group in _group_by_category(info_findings).items():
-            lines.append(f"  {category} ({len(group)}):")
+            lines.append(f"  {_category_label(category)} ({len(group)}):")
             for f in group:
                 lines.append(f"    · {f.title}")
         lines.append("")
@@ -149,7 +190,7 @@ _HTML_BADGE_CLASS = {
 }
 
 
-def _html_escape(text: str) -> str:
+def _html_escape(text) -> str:
     return (
         str(text)
         .replace("&", "&amp;")
@@ -159,7 +200,7 @@ def _html_escape(text: str) -> str:
     )
 
 
-def _html_card(f: Finding) -> str:
+def _html_card(f: Finding, index: int, total: int) -> str:
     badge = _HTML_BADGE_CLASS[f.confidence]
     evidence_html = ""
     ev_lines = _evidence_lines(f.evidence) if f.evidence else []
@@ -176,9 +217,9 @@ def _html_card(f: Finding) -> str:
     cve_html = f'<p class="cve">{_html_escape(f.cve)}</p>' if f.cve else ""
     return f"""
       <div class="card {badge}">
-        <div class="card-head"><span class="badge {badge}">{f.confidence.value}</span> {_html_escape(f.title)}</div>
+        <div class="card-head"><span class="badge {badge}">{f.confidence.value}</span> <span class="card-index">{index}/{total}</span> {_html_escape(f.title)}</div>
         <div class="card-body">
-          <p class="category">{_html_escape(f.category)}</p>
+          <p class="category">{_html_escape(_category_label(f.category))}</p>
           {cve_html}
           <p>{_html_escape(f.description)}</p>
           {evidence_html}
@@ -188,7 +229,7 @@ def _html_card(f: Finding) -> str:
       </div>"""
 
 
-def render_html(result: RunResult) -> str:
+def render_html(result: RunResult, duration: float | None = None) -> str:
     findings = sorted(result.findings, key=confidence_sort_key)
     counts: dict[str, int] = {}
     for f in findings:
@@ -199,13 +240,13 @@ def render_html(result: RunResult) -> str:
     error_findings = [f for f in findings if f.confidence == Confidence.ERROR]
 
     actionable_html = (
-        "".join(_html_card(f) for f in actionable)
+        "".join(_html_card(f, i, len(actionable)) for i, f in enumerate(actionable, start=1))
         if actionable
         else '<p class="empty">No CONFIRMED or LIKELY findings this pass.</p>'
     )
 
     info_groups_html = "".join(
-        f'<div class="info-group"><span class="info-group-name">{_html_escape(cat)}</span>'
+        f'<div class="info-group"><span class="info-group-name">{_html_escape(_category_label(cat))}</span>'
         + "".join(f'<span class="info-item">{_html_escape(f.title)}</span>' for f in group)
         + "</div>"
         for cat, group in _group_by_category(info_findings).items()
@@ -232,6 +273,13 @@ def render_html(result: RunResult) -> str:
         for c in (Confidence.CONFIRMED, Confidence.LIKELY, Confidence.INFO, Confidence.ERROR)
     )
 
+    meta = _gather_meta()
+    duration_str = f" · duration: {duration:.1f}s" if duration is not None else ""
+    meta_html = (
+        f"host: {_html_escape(meta['hostname'])} · user: {_html_escape(meta['user'])} · "
+        f"kernel: {_html_escape(meta['kernel'])}{duration_str}"
+    )
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -243,6 +291,7 @@ def render_html(result: RunResult) -> str:
   body {{ font-family: -apple-system, Segoe UI, Roboto, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem 3rem; background:#0f1115; color:#e6e6e6; }}
   h1 {{ font-size: 1.4rem; margin-bottom: 0.25rem; }}
   h2 {{ font-size: 1rem; text-transform: uppercase; letter-spacing: 0.04em; color:#9aa0ab; margin: 1.75rem 0 0.75rem; border-bottom: 1px solid #2a2d34; padding-bottom: 0.4rem; }}
+  .meta {{ font-size:0.82rem; color:#7d8492; margin-bottom: 0.75rem; }}
   .summary {{ margin: 0.75rem 0 0.5rem; }}
   .badge {{ display:inline-block; padding:3px 10px; border-radius:5px; font-size:0.8rem; font-weight:700; margin-right:6px; }}
   .badge-confirmed {{ background:#7a1f1f; color:#ffb3b3; }}
@@ -253,6 +302,7 @@ def render_html(result: RunResult) -> str:
   .card.badge-confirmed {{ border-left-color:#c94b4b; }}
   .card.badge-likely {{ border-left-color:#c99a4b; }}
   .card-head {{ font-weight:600; margin-bottom:6px; }}
+  .card-index {{ color:#6b7280; font-weight:400; font-size:0.85rem; }}
   .card-body {{ font-size:0.92rem; line-height:1.55; color:#c7cad1; }}
   .card-body p {{ margin: 0.4rem 0; }}
   .category {{ color:#7d8492; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.03em; }}
@@ -274,6 +324,7 @@ def render_html(result: RunResult) -> str:
 </head>
 <body>
   <h1>confirmesc report</h1>
+  <div class="meta">{meta_html}</div>
   <div class="summary">{summary_html}</div>
   <h2>Actionable findings</h2>
   {actionable_html}

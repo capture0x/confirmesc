@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 
 from . import __version__
 from .checks import ALL_CHECKS
@@ -88,7 +89,9 @@ def main(argv: list[str] | None = None) -> int:
         if not args.quiet:
             print(f"[*] {check_id} done ({duration:.1f}s)", file=sys.stderr)
 
+    scan_started = time.monotonic()
     result = run_checks(checks, on_check_done=on_check_done)
+    scan_duration = time.monotonic() - scan_started
 
     if args.min_confidence:
         order = {c.value: i for i, c in enumerate([Confidence.CONFIRMED, Confidence.LIKELY, Confidence.INFO, Confidence.ERROR])}
@@ -98,10 +101,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.format == "json":
         output = render_json(result)
     elif args.format == "html":
-        output = render_html(result)
+        output = render_html(result, duration=scan_duration)
     else:
         use_color = not args.no_color and sys.stdout.isatty() and not args.output
-        output = render_text(result, use_color=use_color)
+        output = render_text(result, use_color=use_color, duration=scan_duration)
 
     if args.output:
         with open(args.output, "w", encoding="utf-8") as fh:
