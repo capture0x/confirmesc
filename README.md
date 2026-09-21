@@ -84,6 +84,16 @@ Or without installing:
 python3 -m confirmesc.cli
 ```
 
+Or as a single portable file to drop on a target (no pip install needed there):
+
+```bash
+python3 -m zipapp confirmesc -m "confirmesc.cli:main" -o confirmesc.pyz -p "/usr/bin/env python3"
+# transfer confirmesc.pyz to the target, then:
+python3 confirmesc.pyz --no-color
+```
+
+See `testlab/` for a local Docker-based vulnerable sandbox to see `--poc` actually gain root, without needing an external target like HTB.
+
 Exit code is `1` if any `CONFIRMED` finding exists, `0` otherwise — useful in CI/CTF automation.
 
 ## Known limitations

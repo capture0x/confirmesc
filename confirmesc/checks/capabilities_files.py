@@ -8,6 +8,7 @@ real file - no inference either way.
 from __future__ import annotations
 
 import os
+import re
 
 from ..core.base import Check, Confidence, Finding
 from ..core.data_loader import load_gtfobins
@@ -65,13 +66,15 @@ class CapabilitiesAndCriticalFilesCheck(Check):
         gtfo = load_gtfobins()
         findings: list[Finding] = []
         for line in filter(None, proc.stdout.splitlines()):
-            # Format: "/usr/bin/python3.11 cap_setuid,cap_setgid+ep"
+            # Format: "/usr/bin/python3.11 cap_setuid,cap_setgid+ep" - note the
+            # +ep/=ep operator suffix is only attached to the LAST capability
+            # in a comma-separated list, not to each one individually.
             parts = line.split(None, 1)
             if len(parts) != 2:
                 continue
             path, caps_raw = parts
             caps_raw = caps_raw.strip()
-            cap_names = {c.split("+")[0].strip().lower() for c in caps_raw.split(",")}
+            cap_names = {re.sub(r"[+=].*$", "", c).strip().lower() for c in caps_raw.split(",")}
             dangerous = cap_names & _DANGEROUS_CAPS
             if not dangerous:
                 continue
