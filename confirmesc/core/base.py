@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
+from .executor import Executor, LocalExecutor
+
 
 class Confidence(str, Enum):
     """How strongly a finding is backed by directly-observed facts.
@@ -76,10 +78,13 @@ class Check:
     #: behind the separate, more invasive --poc flag.
     supports_poc: bool = False
 
-    def __init__(self, active: bool = False, poc: bool = False, timeout: int = 20):
+    def __init__(self, active: bool = False, poc: bool = False, timeout: int = 20, fs: Optional[Executor] = None):
         self.active = active
         self.poc = poc
         self.timeout = timeout
+        #: Where this check's commands actually run. Defaults to the local
+        #: machine; swap for another Executor to drive a different transport.
+        self.fs: Executor = fs or LocalExecutor()
 
     def run(self) -> list[Finding]:  # pragma: no cover - implemented by subclasses
         raise NotImplementedError
@@ -87,16 +92,7 @@ class Check:
     # -- shared helpers -------------------------------------------------
     def _run(self, args: list[str], timeout: Optional[int] = None) -> subprocess.CompletedProcess:
         """Run a command, never raising on non-zero exit or missing binary."""
-        try:
-            return subprocess.run(
-                args,
-                capture_output=True,
-                text=True,
-                timeout=timeout or self.timeout,
-                check=False,
-            )
-        except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
-            return subprocess.CompletedProcess(args, returncode=-1, stdout="", stderr=str(exc))
+        return self.fs.run(args, timeout or self.timeout)
 
     def finding(self, **kwargs) -> Finding:
         kwargs.setdefault("check_id", self.id)

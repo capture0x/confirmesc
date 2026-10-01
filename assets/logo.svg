@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="confirmesc logo">
+  <title>confirmesc</title>
+  <defs>
+    <radialGradient id="bg" cx="0.5" cy="0.32" r="0.9">
+      <stop offset="0" stop-color="#15223A"/>
+      <stop offset="1" stop-color="#090F1C"/>
+    </radialGradient>
+    <radialGradient id="aura" cx="0.5" cy="0.44" r="0.55">
+      <stop offset="0" stop-color="#1FE39A" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#1FE39A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="shield" x1="0.15" y1="0" x2="0.85" y2="1">
+      <stop offset="0" stop-color="#63F7CB"/>
+      <stop offset="0.42" stop-color="#20C98C"/>
+      <stop offset="1" stop-color="#0A7E59"/>
+    </linearGradient>
+    <linearGradient id="bevelTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="check" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E7FBF2"/>
+    </linearGradient>
+    <path id="sh" d="M86 48 H170 Q196 48 196 74 V116 Q196 172 128 210 Q60 172 60 116 V74 Q60 48 86 48 Z"/>
+    <clipPath id="clip"><use href="#sh"/></clipPath>
+    <filter id="drop" x="-40%" y="-40%" width="180%" height="190%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#021611" flood-opacity="0.55"/>
+    </filter>
+    <filter id="cs" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#064634" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- tile -->
+  <rect x="0" y="0" width="256" height="256" rx="58" fill="url(#bg)"/>
+  <rect width="256" height="256" rx="58" fill="url(#aura)"/>
+  <rect x="2" y="2" width="252" height="252" rx="56" fill="none" stroke="#2A3B57" stroke-width="2.5"/>
+
+  <g filter="url(#drop)">
+    <use href="#sh" fill="url(#shield)"/>
+    <g clip-path="url(#clip)">
+      <!-- top gloss -->
+      <ellipse cx="128" cy="26" rx="118" ry="72" fill="#FFFFFF" opacity="0.16"/>
+      <!-- bottom depth shadow -->
+      <ellipse cx="128" cy="230" rx="96" ry="60" fill="#02362A" opacity="0.5"/>
+      <!-- inner bevel edge -->
+      <use href="#sh" fill="none" stroke="#063D2C" stroke-width="7" opacity="0.5"/>
+    </g>
+    <!-- crisp rim light -->
+    <use href="#sh" fill="none" stroke="url(#bevelTop)" stroke-width="2.5"/>
+  </g>
+
+  <!-- clean confirmed check -->
+  <path d="M90 132 L116 159 L178 84" fill="none" stroke="url(#check)" stroke-width="23"
+        stroke-linecap="round" stroke-linejoin="round" filter="url(#cs)"/>
+</svg>

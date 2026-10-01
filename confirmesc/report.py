@@ -16,10 +16,15 @@ import getpass
 import json
 import os
 import socket
-from dataclasses import asdict
+from dataclasses import asdict, fields
 
 from .core.base import Confidence, Finding, confidence_sort_key
 from .core.runner import RunResult
+
+#: Field names Finding accepts - used to drop any unknown keys when
+#: rebuilding a result from an over-the-wire payload (forward-compat: a
+#: newer sender may add fields an older receiver doesn't know about).
+_FINDING_FIELDS = {f.name for f in fields(Finding)}
 
 _COLOR = {
     Confidence.CONFIRMED: "\033[91m",  # red - most actionable
@@ -125,7 +130,12 @@ def _text_card(f: Finding, index: int, total: int, use_color: bool) -> list[str]
     return lines
 
 
-def render_text(result: RunResult, use_color: bool = True, duration: float | None = None) -> str:
+def render_text(
+    result: RunResult,
+    use_color: bool = True,
+    duration: float | None = None,
+    meta: dict | None = None,
+) -> str:
     findings = sorted(result.findings, key=confidence_sort_key)
     counts: dict[str, int] = {}
     for f in findings:
@@ -136,7 +146,9 @@ def render_text(result: RunResult, use_color: bool = True, duration: float | Non
         reset = _RESET if use_color else ""
         return f"{color}{c.value}={counts.get(c, 0)}{reset}"
 
-    meta = _gather_meta()
+    # When a report was pushed from another host (confirmesc-recv), render
+    # that host's meta rather than the receiver's own.
+    meta = meta or _gather_meta()
     lines: list[str] = []
     lines.append("=" * 72)
     lines.append("confirmesc - Linux privilege escalation report")
@@ -237,7 +249,7 @@ def _html_card(f: Finding, index: int, total: int) -> str:
       </div>"""
 
 
-def render_html(result: RunResult, duration: float | None = None) -> str:
+def render_html(result: RunResult, duration: float | None = None, meta: dict | None = None) -> str:
     findings = sorted(result.findings, key=confidence_sort_key)
     counts: dict[str, int] = {}
     for f in findings:
@@ -281,7 +293,7 @@ def render_html(result: RunResult, duration: float | None = None) -> str:
         for c in (Confidence.CONFIRMED, Confidence.LIKELY, Confidence.INFO, Confidence.ERROR)
     )
 
-    meta = _gather_meta()
+    meta = meta or _gather_meta()
     duration_str = f" · duration: {duration:.1f}s" if duration is not None else ""
     meta_html = (
         f"host: {_html_escape(meta['hostname'])} · user: {_html_escape(meta['user'])} · "
@@ -347,10 +359,44 @@ def render_html(result: RunResult, duration: float | None = None) -> str:
 
 
 def render_json(result: RunResult) -> str:
-    payload = {
+    return json.dumps(build_report_payload(result), indent=2, default=str)
+
+
+# --------------------------------------------------------------------------
+# push / exfil payload (confirmesc --send  <->  confirmesc-recv)
+# --------------------------------------------------------------------------
+
+
+def build_report_payload(result: RunResult, duration: float | None = None, meta: dict | None = None) -> dict:
+    """Serialize a scan result into a JSON-safe dict for transport.
+
+    This is what `confirmesc --send` POSTs to a `confirmesc-recv` listener:
+    the finished findings plus the scanned host's own meta/duration, so the
+    receiver can re-render the report exactly as the target would have.
+    `result_from_payload` is the exact inverse.
+    """
+    return {
+        "meta": meta or _gather_meta(),
+        "duration": duration,
         "findings": [
-            {**asdict(f), "confidence": f.confidence.value} for f in sorted(result.findings, key=confidence_sort_key)
+            {**asdict(f), "confidence": f.confidence.value}
+            for f in sorted(result.findings, key=confidence_sort_key)
         ],
-        "errors": result.errors,
+        "errors": dict(result.errors),
     }
-    return json.dumps(payload, indent=2, default=str)
+
+
+def result_from_payload(payload: dict) -> RunResult:
+    """Rebuild a RunResult from a `build_report_payload` dict.
+
+    Confidence comes back as the real `Confidence` enum (not a bare string)
+    and any unknown finding keys are dropped, so a report produced by a newer
+    confirmesc can still be rendered by an older receiver.
+    """
+    result = RunResult()
+    for raw in payload.get("findings", []) or []:
+        data = {k: v for k, v in raw.items() if k in _FINDING_FIELDS}
+        data["confidence"] = Confidence(data["confidence"])
+        result.findings.append(Finding(**data))
+    result.errors = dict(payload.get("errors") or {})
+    return result

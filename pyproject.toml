@@ -19,6 +19,7 @@ classifiers = [
 
 [project.scripts]
 confirmesc = "confirmesc.cli:main"
+confirmesc-recv = "confirmesc.recv:main"
 
 [tool.setuptools.packages.find]
 include = ["confirmesc*"]

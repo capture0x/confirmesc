@@ -125,7 +125,7 @@ class CronSystemdPathCheck(Check):
                     title=f"Writable file executed by root scheduler: {path}",
                     confidence=Confidence.CONFIRMED,
                     description=(
-                        f"{context} — os.access() confirms the current user can write to "
+                        f"{context} - os.access() confirms the current user can write to "
                         f"'{path}' directly. Overwriting it will have root run our code on "
                         "its next scheduled execution."
                     ),
@@ -140,7 +140,7 @@ class CronSystemdPathCheck(Check):
                     title=f"Writable directory containing root-scheduled file: {directory}",
                     confidence=Confidence.CONFIRMED,
                     description=(
-                        f"{context} — the file itself isn't writable but its containing "
+                        f"{context} - the file itself isn't writable but its containing "
                         f"directory '{directory}' is, confirmed via os.access(). The file can "
                         "be deleted and replaced, which is equally exploitable."
                     ),
