@@ -146,14 +146,24 @@ confirmesc-mcp            # serve over stdio
 
 ### Skills
 
-The `skills/` directory holds playbooks an agent loads to work through each
-vector class:
+The `skills/` directory holds playbooks an AI agent loads to work through each
+vector class. There is one skill per confirmesc finding type, plus an
+orchestrator:
 
 | Skill | Role |
 |-------|------|
 | `confirmesc-triage` | Orchestrator: run confirmesc, read the report, route each `CONFIRMED` finding to the right technique skill |
 | `suid-sgid-exploitation` | Turn a confirmed SUID/SGID finding into a root shell |
 | `sudo-abuse` | Turn a confirmed sudo rule into a root shell |
+| `linux-capabilities` | Abuse `cap_setuid` and other dangerous file capabilities |
+| `kernel-cve` | Act on a version-matched kernel/sudo/polkit CVE (Dirty Pipe, PwnKit, Baron Samedit, ...) |
+| `cron-path-hijack` | Exploit a writable cron/systemd/`$PATH` entry a root scheduler runs |
+| `cron-wildcard-injection` | Exploit an unquoted wildcard in a root-run `tar`/`rsync`/... command |
+| `group-escalation` | Escalate via `docker`/`lxd`/`lxc`/`disk` group membership |
+| `sudo-env-keep` | Exploit `LD_PRELOAD` preserved through a sudo `env_keep` rule |
+| `nfs-no-root-squash` | Plant a root-owned SUID shell through a `no_root_squash` export |
+| `credential-recon` | Reuse another user's readable SSH keys, `.env`, or history to pivot |
+| `critical-file-write` | Escalate via a writable `/etc/passwd`, `/etc/shadow`, or `/etc/sudoers` |
 
 Every skill keeps exploitation operator-driven and authorized-targets-only.
 
