@@ -54,8 +54,9 @@ now, and how?**
 | Handles the `dash`/`bash` privilege drop | No | Often fails | **Yes** |
 | Proves root for real (`euid == 0`) | No | No | **Yes, with `--poc`** |
 | Honest confidence levels | No | - | **`CONFIRMED` / `LIKELY` / `INFO`** |
+| **AI agent integration** (MCP + skills) | No | No | **Yes** |
 
-**Four things set it apart:**
+**Five things set it apart:**
 
 - **It confirms, it does not guess.** A finding is marked `CONFIRMED` only when
   the exploitable condition itself was directly observed on the running system:
