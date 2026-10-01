@@ -10,6 +10,21 @@ against the running system (real file permissions, real capabilities, real
 `sudo -l` authorization, exact version-range matches) and assigns it an
 honest confidence level, so you can jump straight to what's actionable.
 
+It also goes one step further than a reference link. Every GTFOBins-style
+tool tells you "this binary is on the list, go look it up" - but a lot of
+the classic one-liners on GTFOBins silently fail on a modern Debian/Kali box,
+because `/bin/sh` is `dash`, and both `dash` and `bash` (without `-p`)
+**actively drop root privileges the instant they detect `euid != ruid`** -
+a real, verified Linux shell hardening behavior, not a bug. `confirmesc`
+generates the exploit command *knowing this*: it either calls `setuid(0)`
+explicitly before ever touching a shell, uses `bash -p`, or bypasses the
+shell entirely via a direct `exec()`. Every `CONFIRMED` finding with a
+verified-reliable recipe gets a **ready-to-run command that actually spawns
+an interactive root shell** - not just a link, and not just an `id -u`
+probe. This was verified end-to-end in the `testlab/` sandbox: both the
+generated SUID and sudo commands were run for real and produced
+`uid=0(root)`.
+
 ## Confidence levels
 
 | Level       | Meaning |
@@ -69,6 +84,18 @@ see "Known limitations" below).
 **Only use `--poc` against systems you are explicitly authorized to test**
 (your own systems, a CTF, or an engagement with signed authorization). It
 will attempt real privilege escalation.
+
+## Ready-to-run exploit commands
+
+Independent of `--poc`, every `CONFIRMED` SUID/sudo/capability finding for a
+binary we have a verified-reliable recipe for (`find`, `bash`, `python`/
+`python2`/`python3`, `perl`, `ruby`) carries an `exploit_command` field - a
+command you can copy and run yourself to get an actual interactive root
+shell. **`confirmesc` never runs it for you**, in any mode, including
+`--poc` - it's printed for the operator to decide on, the same way a manual
+pentest report would suggest a PoC. It shows up as a highlighted "🔑 root
+shell:" line in the text report, a green box in the HTML report, and the
+`exploit_command` key in JSON.
 
 ## Install & run
 

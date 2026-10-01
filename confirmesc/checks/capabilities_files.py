@@ -112,6 +112,17 @@ class CapabilitiesAndCriticalFilesCheck(Check):
                         f"{result.observed_uid!r} instead of 0."
                     )
 
+            exploit_command = None
+            if "cap_setuid" in dangerous and gtfo_entry:
+                # Same template used for the SUID case works here too: it
+                # calls setuid(0) explicitly, which is exactly the ability
+                # cap_setuid grants (unlike a real SUID bit, capabilities
+                # don't elevate euid automatically at exec - the binary has
+                # to call setuid() itself).
+                template = gtfo_entry.get("suid_shell_cmd")
+                if template:
+                    exploit_command = template.replace("<BIN>", path)
+
             findings.append(
                 self.finding(
                     title=title,
@@ -122,6 +133,7 @@ class CapabilitiesAndCriticalFilesCheck(Check):
                     references=(
                         [f"https://gtfobins.github.io/gtfobins/{basename}/"] if known_vector else []
                     ),
+                    exploit_command=exploit_command,
                 )
             )
         return findings

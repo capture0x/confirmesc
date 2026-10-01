@@ -115,6 +115,8 @@ def _text_card(f: Finding, index: int, total: int, use_color: bool) -> list[str]
     if f.evidence:
         for line in _evidence_lines(f.evidence):
             lines.append(f"  {dim}· {line}{reset}")
+    if f.exploit_command:
+        lines.append(f"  {bold}🔑 root shell:{reset} {f.exploit_command}")
     if f.remediation:
         lines.append(f"  {color}→ fix:{reset} {f.remediation}")
     if f.references:
@@ -215,6 +217,11 @@ def _html_card(f: Finding, index: int, total: int) -> str:
         else ""
     )
     cve_html = f'<p class="cve">{_html_escape(f.cve)}</p>' if f.cve else ""
+    exploit_html = (
+        f'<div class="exploit"><span class="exploit-label">🔑 root shell</span><code>{_html_escape(f.exploit_command)}</code></div>'
+        if f.exploit_command
+        else ""
+    )
     return f"""
       <div class="card {badge}">
         <div class="card-head"><span class="badge {badge}">{f.confidence.value}</span> <span class="card-index">{index}/{total}</span> {_html_escape(f.title)}</div>
@@ -223,6 +230,7 @@ def _html_card(f: Finding, index: int, total: int) -> str:
           {cve_html}
           <p>{_html_escape(f.description)}</p>
           {evidence_html}
+          {exploit_html}
           {f'<p class="fix"><strong>fix:</strong> {_html_escape(f.remediation)}</p>' if f.remediation else ""}
           {refs_html}
         </div>
@@ -309,6 +317,9 @@ def render_html(result: RunResult, duration: float | None = None) -> str:
   .cve {{ color:#ff9d9d; font-size:0.85rem; font-weight:600; }}
   .fix {{ color:#b7e3b0; }}
   .refs {{ font-size:0.8rem; color:#7d8492; }}
+  .exploit {{ background:#0f1a10; border:1px solid #2f5c33; border-radius:5px; padding:8px 10px; margin:0.6rem 0; }}
+  .exploit-label {{ display:block; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.04em; color:#7fd88a; margin-bottom:4px; }}
+  .exploit code {{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:0.85rem; color:#c9f5cd; word-break:break-all; }}
   ul.evidence {{ background:#0b0d11; border-radius:4px; padding:8px 8px 8px 22px; margin:0.5rem 0; font-size:0.82rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color:#9fd0ff; }}
   ul.evidence li {{ margin: 2px 0; }}
   .empty {{ color:#8fbf8f; }}

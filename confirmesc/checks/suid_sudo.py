@@ -121,6 +121,11 @@ class SuidSudoCheck(Check):
                             "differently than the GTFOBins reference, or be patched/wrapped)."
                         )
 
+                exploit_command = None
+                template = entry.get("suid_shell_cmd")
+                if template:
+                    exploit_command = template.replace("<BIN>", path)
+
                 findings.append(
                     self.finding(
                         title=title,
@@ -129,6 +134,7 @@ class SuidSudoCheck(Check):
                         evidence=evidence,
                         remediation=f"Remove the setuid/setgid bit if not required: chmod -s {path}",
                         references=[f"https://gtfobins.github.io/gtfobins/{basename}/"],
+                        exploit_command=exploit_command,
                     )
                 )
             else:
@@ -194,6 +200,7 @@ class SuidSudoCheck(Check):
                         description=description,
                         evidence=evidence,
                         remediation="Restrict the sudoers entry to specific commands.",
+                        exploit_command="sudo /bin/bash" if runs_as_root else None,
                     )
                 )
                 continue
@@ -238,6 +245,11 @@ class SuidSudoCheck(Check):
                                 f"{result.observed_uid!r} instead of 0."
                             )
 
+                    exploit_command = None
+                    template = entry.get("sudo_shell_cmd")
+                    if template and runs_as_root:
+                        exploit_command = template.replace("<BIN>", binary_path)
+
                     findings.append(
                         self.finding(
                             title=title,
@@ -246,6 +258,7 @@ class SuidSudoCheck(Check):
                             evidence=evidence,
                             remediation=f"Remove or tighten the sudoers rule for '{binary_path}'",
                             references=[f"https://gtfobins.github.io/gtfobins/{basename}/"],
+                            exploit_command=exploit_command,
                         )
                     )
                 else:

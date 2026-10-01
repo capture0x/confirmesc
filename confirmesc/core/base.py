@@ -51,6 +51,15 @@ class Finding:
     remediation: str = ""
     references: list[str] = field(default_factory=list)
     cve: Optional[str] = None
+    #: A ready-to-run command that gets an actual interactive root shell,
+    #: only ever populated on CONFIRMED findings we have a verified-reliable
+    #: recipe for. Never executed automatically - printed for the operator
+    #: to run themselves. Deliberately avoids known shell privilege-drop
+    #: pitfalls (dash/bash silently drop euid-!=-ruid privileges unless
+    #: bypassed - see checks/suid_sudo.py and data/gtfobins.json for details)
+    #: rather than reproducing a GTFOBins one-liner that may not actually
+    #: work on the target's default shell.
+    exploit_command: Optional[str] = None
 
 
 class Check:
