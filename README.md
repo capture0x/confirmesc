@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/platform-Linux-0b7285" alt="Linux">
   <img src="https://img.shields.io/badge/python-3.9%2B-2b8a3e" alt="Python 3.9+">
   <img src="https://img.shields.io/badge/license-MIT-2f9e44" alt="MIT License">
-  <img src="https://img.shields.io/badge/tests-82%20passing-37b24d" alt="Tests passing">
+  <img src="https://github.com/capture0x/confirmesc/actions/workflows/ci.yml/badge.svg" alt="CI">
   <img src="https://img.shields.io/badge/output-text%20%7C%20json%20%7C%20html-1864ab" alt="Output formats">
   <img src="https://img.shields.io/badge/MCP-ready-7c3aed" alt="MCP ready">
   <img src="https://img.shields.io/badge/AI%20agent-ready-8b5cf6" alt="AI agent ready">
