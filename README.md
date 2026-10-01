@@ -133,6 +133,7 @@ lists the tools, calls `scan`, and gets structured findings back, each
 Tools exposed:
 
 - `scan` - run a passive/active scan and return structured findings (with the `exploit_command` for each confirmed vector)
+- `report` - run a scan and return a rendered report as text, json, or html
 - `list_privesc_checks` - list the available checks by category
 
 Live exploitation (`--poc`) is deliberately **not** exposed: confirming
@@ -152,6 +153,7 @@ orchestrator:
 
 | Skill | Role |
 |-------|------|
+| `privesc-authorization-check` | Gate: confirm scope and permission before scanning or exploiting (load first) |
 | `confirmesc-triage` | Orchestrator: run confirmesc, read the report, route each `CONFIRMED` finding to the right technique skill |
 | `suid-sgid-exploitation` | Turn a confirmed SUID/SGID finding into a root shell |
 | `sudo-abuse` | Turn a confirmed sudo rule into a root shell |
@@ -164,6 +166,7 @@ orchestrator:
 | `nfs-no-root-squash` | Plant a root-owned SUID shell through a `no_root_squash` export |
 | `credential-recon` | Reuse another user's readable SSH keys, `.env`, or history to pivot |
 | `critical-file-write` | Escalate via a writable `/etc/passwd`, `/etc/shadow`, or `/etc/sudoers` |
+| `post-exploitation-notes` | After root: record the path, keep changes reversible, clean up |
 
 Every skill keeps exploitation operator-driven and authorized-targets-only.
 

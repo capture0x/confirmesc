@@ -6,7 +6,7 @@ installed (skipped otherwise).
 """
 import pytest
 
-from confirmesc.mcp_server import available_checks, run_scan
+from confirmesc.mcp_server import available_checks, run_report, run_scan
 
 
 def test_run_scan_returns_payload_shape():
@@ -33,6 +33,29 @@ def test_run_scan_rejects_bad_min_confidence():
         run_scan(min_confidence="NOPE")
 
 
+def test_run_report_text_is_readable():
+    text = run_report(fmt="text", categories=["nfs"])
+    assert "confirmesc" in text
+    assert isinstance(text, str)
+
+
+def test_run_report_json_roundtrips():
+    import json
+
+    data = json.loads(run_report(fmt="json", categories=["nfs"]))
+    assert "findings" in data
+
+
+def test_run_report_html_is_html():
+    html = run_report(fmt="html", categories=["nfs"])
+    assert html.lstrip().startswith("<!DOCTYPE html>")
+
+
+def test_run_report_rejects_bad_fmt():
+    with pytest.raises(ValueError):
+        run_report(fmt="pdf")
+
+
 def test_available_checks_lists_known_categories():
     cats = {c["category"] for c in available_checks()}
     assert "suid_sgid_sudo" in cats
@@ -53,4 +76,4 @@ def test_build_server_registers_tools():
     if inspect.isawaitable(tools):
         tools = asyncio.run(tools)
     names = {getattr(t, "name", None) for t in tools}
-    assert {"scan", "list_privesc_checks"} <= names
+    assert {"scan", "list_privesc_checks", "report"} <= names

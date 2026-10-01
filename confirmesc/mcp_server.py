@@ -17,7 +17,7 @@ from typing import Optional
 from .checks import ALL_CHECKS
 from .core.base import Confidence
 from .core.runner import run_checks
-from .report import build_report_payload
+from .report import build_report_payload, render_html, render_json, render_text
 
 _ORDER = {
     c.value: i
@@ -25,12 +25,12 @@ _ORDER = {
 }
 
 
-def run_scan(
+def _scan_result(
     active: bool = False,
     categories: Optional[list[str]] = None,
     min_confidence: Optional[str] = None,
-) -> dict:
-    """Run a passive (or active) scan and return the JSON report payload.
+):
+    """Run a passive (or active) scan and return the filtered RunResult.
 
     Never performs live exploitation (`poc` is always off). `min_confidence`,
     when given, keeps only findings at or above that level (CONFIRMED > LIKELY
@@ -49,7 +49,37 @@ def run_scan(
     if min_confidence is not None:
         threshold = _ORDER[min_confidence]
         result.findings = [f for f in result.findings if _ORDER[f.confidence.value] <= threshold]
-    return build_report_payload(result)
+    return result
+
+
+def run_scan(
+    active: bool = False,
+    categories: Optional[list[str]] = None,
+    min_confidence: Optional[str] = None,
+) -> dict:
+    """Run a scan and return the structured JSON report payload."""
+    return build_report_payload(_scan_result(active, categories, min_confidence))
+
+
+def run_report(
+    fmt: str = "text",
+    active: bool = False,
+    categories: Optional[list[str]] = None,
+    min_confidence: Optional[str] = None,
+) -> str:
+    """Run a scan and return a rendered report as a string.
+
+    `fmt` is one of 'text', 'json', or 'html'. Text is rendered without ANSI
+    color so it is safe to embed in a transcript.
+    """
+    if fmt not in ("text", "json", "html"):
+        raise ValueError(f"fmt must be one of 'text', 'json', 'html', got {fmt!r}")
+    result = _scan_result(active, categories, min_confidence)
+    if fmt == "json":
+        return render_json(result)
+    if fmt == "html":
+        return render_html(result)
+    return render_text(result, use_color=False)
 
 
 def available_checks() -> list[dict]:
@@ -94,6 +124,21 @@ def build_server():
     )
     def list_privesc_checks() -> list[dict]:
         return available_checks()
+
+    @server.tool(
+        description=(
+            "Run a scan and return a rendered, human-readable report as a string. "
+            "`fmt` is 'text' (default), 'json', or 'html'. Use this when you want "
+            "the formatted report rather than the raw structured findings."
+        )
+    )
+    def report(
+        fmt: str = "text",
+        active: bool = False,
+        categories: Optional[list[str]] = None,
+        min_confidence: Optional[str] = None,
+    ) -> str:
+        return run_report(fmt=fmt, active=active, categories=categories, min_confidence=min_confidence)
 
     return server
 

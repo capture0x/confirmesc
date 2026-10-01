@@ -8,6 +8,8 @@ description: Run confirmesc on an authorized Linux target, read the report, and 
 Use this when you have a shell on an authorized Linux target and need to know,
 quickly, whether it can be escalated to root and how.
 
+Load `privesc-authorization-check` first; only proceed once that gate passes.
+
 ## Workflow
 
 1. Run a passive scan and read structured output:
@@ -20,12 +22,19 @@ quickly, whether it can be escalated to root and how.
    - sudo rule -> `sudo-abuse`
    - Linux capability -> `linux-capabilities`
    - writable cron / systemd / `$PATH` -> `cron-path-hijack`
+   - cron wildcard injection -> `cron-wildcard-injection`
    - kernel / sudo / polkit CVE -> `kernel-cve`
    - docker / lxd / disk group -> `group-escalation`
+   - sudo `env_keep` / `LD_PRELOAD` -> `sudo-env-keep`
+   - NFS `no_root_squash` -> `nfs-no-root-squash`
+   - readable keys / credentials -> `credential-recon`
+   - writable `/etc/passwd` / `/etc/shadow` / `/etc/sudoers` -> `critical-file-write`
 4. Every `CONFIRMED` SUID / sudo / capability finding already carries an
    `exploit_command` field. That command is built to actually return a root
    shell on a modern box (it accounts for the `dash`/`bash` privilege drop).
    Present it to the operator.
+5. After a technique succeeds, follow `post-exploitation-notes` to record the
+   path, keep changes reversible, and clean up.
 
 ## Reading confidence
 
