@@ -14,7 +14,7 @@ signal, not a live exploitation check.
 confirmesc reports a finding like:
 
 ```
-[LIKELY] Running kernel 5.15.x may be vulnerable to CVE-2022-0847 (Dirty Pipe)
+[LIKELY] Dirty Pipe (CVE-2022-0847) - kernel 5.15.0 looks vulnerable
 ```
 
 ## How to proceed

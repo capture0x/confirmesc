@@ -15,7 +15,7 @@ command-line flags.
 confirmesc reports a finding like:
 
 ```
-[CONFIRMED] Cron wildcard injection risk: 'tar' ... working directory /path (writable)
+[CONFIRMED] Cron wildcard injection risk: 'tar' in /etc/cron.d/backup
 ```
 
 ## How to exploit (tar example)
