@@ -227,6 +227,31 @@ confirmesc --send http://<YOUR-IP>:8000          # scans locally, then submits t
 `confirmesc-recv` options: `--host`/`--port` to bind, `--save-dir` for output
 location, and `--save-format text|json|html`.
 
+## Agent integration (MCP + skills)
+
+confirmesc ships two optional pieces for driving it from an MCP-compatible
+agent or client, so a scan becomes a callable tool with a methodology attached.
+
+**MCP server.** `confirmesc-mcp` exposes passive/active scanning over the Model
+Context Protocol:
+
+- `scan` - run a scan and return structured findings (each CONFIRMED finding includes its ready-to-run exploit command)
+- `list_privesc_checks` - list the available checks by category
+
+Live exploitation (`--poc`) is deliberately not exposed: confirming conditions
+is safe to automate, but running escalation payloads stays an operator decision.
+
+```bash
+pip install -e ".[mcp]"
+confirmesc-mcp            # serve over stdio
+```
+
+**Skills.** The `skills/` directory holds playbooks an agent can load to work
+through each vector class (`confirmesc-triage`, `suid-sgid-exploitation`,
+`sudo-abuse`, and more). The triage skill runs confirmesc, reads the report,
+and routes each CONFIRMED finding to the matching technique skill. Every skill
+keeps exploitation operator-driven and authorized-targets-only.
+
 ## Known limitations
 
 <details>

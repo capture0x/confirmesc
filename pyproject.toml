@@ -17,9 +17,13 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
 ]
 
+[project.optional-dependencies]
+mcp = ["mcp>=1.0"]
+
 [project.scripts]
 confirmesc = "confirmesc.cli:main"
 confirmesc-recv = "confirmesc.recv:main"
+confirmesc-mcp = "confirmesc.mcp_server:main"
 
 [tool.setuptools.packages.find]
 include = ["confirmesc*"]
