@@ -145,6 +145,16 @@ pip install -e ".[mcp]"
 confirmesc-mcp            # serve over stdio
 ```
 
+Point any MCP client at it with a standard stdio server config:
+
+```json
+{
+  "mcpServers": {
+    "confirmesc": { "command": "confirmesc-mcp" }
+  }
+}
+```
+
 ### Skills
 
 The `skills/` directory holds playbooks an AI agent loads to work through each
@@ -168,7 +178,10 @@ orchestrator:
 | `critical-file-write` | Escalate via a writable `/etc/passwd`, `/etc/shadow`, or `/etc/sudoers` |
 | `post-exploitation-notes` | After root: record the path, keep changes reversible, clean up |
 
-Every skill keeps exploitation operator-driven and authorized-targets-only.
+To use them, point your agent's skill loader at the `skills/` directory (each
+subfolder's `SKILL.md` is self-contained), or copy the ones you need into its
+skills path. Every skill keeps exploitation operator-driven and
+authorized-targets-only.
 
 ## Confidence levels
 
