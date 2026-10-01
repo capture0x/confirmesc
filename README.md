@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/tests-78%20passing-37b24d" alt="Tests passing">
   <img src="https://img.shields.io/badge/output-text%20%7C%20json%20%7C%20html-1864ab" alt="Output formats">
   <img src="https://img.shields.io/badge/MCP-ready-7c3aed" alt="MCP ready">
+  <img src="https://img.shields.io/badge/AI%20agent-ready-8b5cf6" alt="AI agent ready">
 </p>
 
 <p align="center">
@@ -22,7 +23,7 @@
   <a href="#why-confirmesc-is-different">Why</a> &nbsp;&bull;&nbsp;
   <a href="#demo">Demo</a> &nbsp;&bull;&nbsp;
   <a href="#quick-start">Quick start</a> &nbsp;&bull;&nbsp;
-  <a href="#agent-integration-mcp--skills">Agent / MCP</a> &nbsp;&bull;&nbsp;
+  <a href="#ai-agent-integration-mcp--skills">AI / MCP</a> &nbsp;&bull;&nbsp;
   <a href="#what-it-checks">What it checks</a> &nbsp;&bull;&nbsp;
   <a href="#install--usage">Usage</a>
 </p>
@@ -77,9 +78,10 @@ now, and how?**
   and checks that the resulting process truly has `euid 0`, turning
   "exploitable in theory" into "we got root just now."
 
-- **It is agent-ready.** confirmesc ships an MCP server and a set of skills, so
-  an agent can run the scan as a tool and follow a built-in methodology to act
-  on the confirmed findings. See [Agent integration](#agent-integration-mcp--skills).
+- **It is AI-agent-ready.** confirmesc ships an MCP server and a set of skills,
+  so an AI agent can run the scan as a tool and follow a built-in methodology to
+  act on the confirmed findings - AI-assisted privilege escalation, end to end.
+  See [AI agent integration](#ai-agent-integration-mcp--skills).
 
 ## Demo
 
@@ -109,11 +111,14 @@ command.**
 The process exit code is `1` when any `CONFIRMED` finding exists and `0`
 otherwise, which makes it easy to use in CI or CTF automation.
 
-## Agent integration (MCP + skills)
+## AI agent integration (MCP + skills)
 
-confirmesc is not just a CLI. It ships two optional pieces that let an
-MCP-compatible agent drive it: the scan becomes a **callable tool**, and a set
-of **skills** gives the agent a methodology to act on the results.
+confirmesc is built for **AI-assisted privilege escalation**. It ships two
+optional pieces that let an AI agent drive it over the Model Context Protocol:
+the scan becomes a **callable tool**, and a set of **skills** gives the agent a
+built-in methodology to act on the confirmed findings. The agent runs the scan,
+reads the confirmed vectors, and already has the exact root command for each
+one - no manual triage, no searching for payloads.
 
 ### MCP server
 
