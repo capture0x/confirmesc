@@ -23,3 +23,20 @@ def test_getcap_multi_capability_operator_only_on_last_entry():
     confirmed = [f for f in findings if f.confidence == Confidence.CONFIRMED]
     assert confirmed, "expected the cap_setuid capability to be recognized as dangerous"
     assert "cap_setuid" in confirmed[0].title
+
+
+def test_critical_files_handles_unreadable_dir(monkeypatch):
+    # An unprivileged scan can hit a critical-glob dir it cannot list (e.g.
+    # root-only /etc/sudoers.d). That must be skipped, not raise.
+    from confirmesc.checks import capabilities_files as cf
+
+    monkeypatch.setattr(cf.os.path, "isdir", lambda d: True)
+
+    def denied(d):
+        raise PermissionError(13, "Permission denied", d)
+
+    monkeypatch.setattr(cf.os, "listdir", denied)
+
+    check = CapabilitiesAndCriticalFilesCheck()
+    findings = check._check_critical_files()
+    assert isinstance(findings, list)

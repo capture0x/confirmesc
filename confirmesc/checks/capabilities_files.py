@@ -144,7 +144,11 @@ class CapabilitiesAndCriticalFilesCheck(Check):
         targets = list(_CRITICAL_FILES)
         for d in _CRITICAL_GLOB_DIRS:
             if os.path.isdir(d):
-                targets.extend(os.path.join(d, name) for name in os.listdir(d))
+                try:
+                    names = os.listdir(d)
+                except OSError:
+                    continue  # unreadable directory (e.g. root-only /etc/sudoers.d): nothing to enumerate
+                targets.extend(os.path.join(d, name) for name in names)
 
         for path in targets:
             if not os.path.exists(path):
