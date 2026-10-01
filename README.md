@@ -6,8 +6,9 @@
   <img src="https://img.shields.io/badge/platform-Linux-0b7285" alt="Linux">
   <img src="https://img.shields.io/badge/python-3.9%2B-2b8a3e" alt="Python 3.9+">
   <img src="https://img.shields.io/badge/license-MIT-2f9e44" alt="MIT License">
-  <img src="https://img.shields.io/badge/tests-69%20passing-37b24d" alt="Tests passing">
+  <img src="https://img.shields.io/badge/tests-78%20passing-37b24d" alt="Tests passing">
   <img src="https://img.shields.io/badge/output-text%20%7C%20json%20%7C%20html-1864ab" alt="Output formats">
+  <img src="https://img.shields.io/badge/MCP-ready-7c3aed" alt="MCP ready">
 </p>
 
 <p align="center">
@@ -21,6 +22,7 @@
   <a href="#why-confirmesc-is-different">Why</a> &nbsp;&bull;&nbsp;
   <a href="#demo">Demo</a> &nbsp;&bull;&nbsp;
   <a href="#quick-start">Quick start</a> &nbsp;&bull;&nbsp;
+  <a href="#agent-integration-mcp--skills">Agent / MCP</a> &nbsp;&bull;&nbsp;
   <a href="#what-it-checks">What it checks</a> &nbsp;&bull;&nbsp;
   <a href="#install--usage">Usage</a>
 </p>
@@ -75,6 +77,10 @@ now, and how?**
   and checks that the resulting process truly has `euid 0`, turning
   "exploitable in theory" into "we got root just now."
 
+- **It is agent-ready.** confirmesc ships an MCP server and a set of skills, so
+  an agent can run the scan as a tool and follow a built-in methodology to act
+  on the confirmed findings. See [Agent integration](#agent-integration-mcp--skills).
+
 ## Demo
 
 An unprivileged user runs `confirmesc`, gets three `CONFIRMED` vectors each with
@@ -102,6 +108,49 @@ command.**
 
 The process exit code is `1` when any `CONFIRMED` finding exists and `0`
 otherwise, which makes it easy to use in CI or CTF automation.
+
+## Agent integration (MCP + skills)
+
+confirmesc is not just a CLI. It ships two optional pieces that let an
+MCP-compatible agent drive it: the scan becomes a **callable tool**, and a set
+of **skills** gives the agent a methodology to act on the results.
+
+### MCP server
+
+`confirmesc-mcp` exposes scanning over the Model Context Protocol. An agent
+lists the tools, calls `scan`, and gets structured findings back, each
+`CONFIRMED` one already carrying its ready-to-run exploit command:
+
+<p align="center">
+  <img src="assets/mcp-demo.gif" alt="confirmesc MCP server: an agent calls the scan tool and gets confirmed vectors with ready root commands" width="820">
+</p>
+
+Tools exposed:
+
+- `scan` - run a passive/active scan and return structured findings (with the `exploit_command` for each confirmed vector)
+- `list_privesc_checks` - list the available checks by category
+
+Live exploitation (`--poc`) is deliberately **not** exposed: confirming
+conditions is safe to automate, but running escalation payloads stays an
+operator decision.
+
+```bash
+pip install -e ".[mcp]"
+confirmesc-mcp            # serve over stdio
+```
+
+### Skills
+
+The `skills/` directory holds playbooks an agent loads to work through each
+vector class:
+
+| Skill | Role |
+|-------|------|
+| `confirmesc-triage` | Orchestrator: run confirmesc, read the report, route each `CONFIRMED` finding to the right technique skill |
+| `suid-sgid-exploitation` | Turn a confirmed SUID/SGID finding into a root shell |
+| `sudo-abuse` | Turn a confirmed sudo rule into a root shell |
+
+Every skill keeps exploitation operator-driven and authorized-targets-only.
 
 ## Confidence levels
 
@@ -226,31 +275,6 @@ confirmesc --send http://<YOUR-IP>:8000          # scans locally, then submits t
 
 `confirmesc-recv` options: `--host`/`--port` to bind, `--save-dir` for output
 location, and `--save-format text|json|html`.
-
-## Agent integration (MCP + skills)
-
-confirmesc ships two optional pieces for driving it from an MCP-compatible
-agent or client, so a scan becomes a callable tool with a methodology attached.
-
-**MCP server.** `confirmesc-mcp` exposes passive/active scanning over the Model
-Context Protocol:
-
-- `scan` - run a scan and return structured findings (each CONFIRMED finding includes its ready-to-run exploit command)
-- `list_privesc_checks` - list the available checks by category
-
-Live exploitation (`--poc`) is deliberately not exposed: confirming conditions
-is safe to automate, but running escalation payloads stays an operator decision.
-
-```bash
-pip install -e ".[mcp]"
-confirmesc-mcp            # serve over stdio
-```
-
-**Skills.** The `skills/` directory holds playbooks an agent can load to work
-through each vector class (`confirmesc-triage`, `suid-sgid-exploitation`,
-`sudo-abuse`, and more). The triage skill runs confirmesc, reads the report,
-and routes each CONFIRMED finding to the matching technique skill. Every skill
-keeps exploitation operator-driven and authorized-targets-only.
 
 ## Known limitations
 
