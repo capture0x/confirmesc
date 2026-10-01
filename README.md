@@ -65,8 +65,8 @@ now, and how?**
   interactive root shell. No opening GTFOBins, matching the technique, and
   adapting a one-liner by hand - confirmesc already did that.
 
-- **Its commands work on modern boxes.** On current Debian / Kali, `/bin/sh` is
-  `dash`, and both `dash` and `bash` silently drop root the moment they notice
+- **Its commands work on modern boxes.** On current Debian-based systems,
+  `/bin/sh` is `dash`, and both `dash` and `bash` silently drop root the moment they notice
   `euid != ruid`. Many copied GTFOBins one-liners fail because of this.
   confirmesc generates commands that account for it (explicit `setuid(0)`,
   `bash -p`, or a direct `exec()`), so the shell you get is really root.
